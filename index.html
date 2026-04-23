@@ -3,8 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Colin Lee — LSU student in Information Systems & Analytics (Cyber Risk concentration) with a CS minor. Portfolio, projects, and resume.">
+    <meta name="author" content="Colin Lee">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="theme-color" content="#461D7C">
+
+    <!-- Open Graph (for link previews on social / iMessage / Discord) -->
+    <meta property="og:title" content="Colin Lee — Cyber Risk & CS @ LSU">
+    <meta property="og:description" content="Student portfolio: projects, experience, and resume. Geaux Tigers.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://colinlee.me/">
+    <meta property="og:image" content="https://colinlee.me/colin-photo.jpg">
+    <meta name="twitter:card" content="summary">
+
     <title>Colin Lee</title>
     <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@700&display=swap" rel="stylesheet">
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -53,9 +68,20 @@
 
 
     <main>
+        <div id="announcement-banner" class="announcement-banner" role="region" aria-label="Site announcement">
+            <div class="announcement-content">
+                <span class="announcement-text">
+                    <span class="announcement-badge">NEW</span>
+                    My full-stack web app is live in beta —
+                    <a href="https://vexel.wtf" target="_blank" rel="noopener noreferrer">check out vexel.wtf &rarr;</a>
+                </span>
+                <button class="announcement-close" aria-label="Dismiss announcement">&times;</button>
+            </div>
+        </div>
+
         <section id="about" class="hero">
             <div class="content">
-                <img src="colin-photo.png" alt="Colin" class="profile-img"> <h2>About Me</h2>
+                <img src="colin-photo.jpg" alt="Colin Lee" class="profile-img" width="180" height="203" fetchpriority="high"> <h2>About Me</h2>
                 <p>I'm Colin Lee, a Louisiana State University student majoring in Information Systems and Analytics (ISDS) with a focus on Cyber Risk, and minoring in Computer Science. Driven by a passion for technology, cybersecurity, and problem-solving, I aim to contribute to secure and innovative digital solutions. Geaux Tigers!</p>
                 
                 <button id="fun-fact-btn">Fun Fact</button>
@@ -70,7 +96,7 @@
                 <h2>Education</h2>
                 <div class="content-block card">
                     <h3>Louisiana State University</h3>
-                    <p><strong>Expected Graduation: Spring 2027 | GPA: 3.8</strong><br>
+                    <p><strong>Expected Graduation: Spring 2027 | GPA: 3.8</strong></p>
                     <p><strong>Bachelor of Science in Information Systems & Analytics (ISDS)</strong><br>
                     The ISDS program at LSU equips students with skills in data analytics, information systems, and decision-making technologies to drive business success. My concentration in Cyber Risk focuses on identifying and mitigating digital threats, including security management, risk assessment, and protecting organizational assets from cyber attacks.</p>
                     
@@ -126,8 +152,9 @@
                 <h2>Projects</h2>
                 <div class="content-block card">
                     <h3>Password Strength Analyzer</h3>
-                    <p>A Java-based tool adapted for web use to evaluate password security. Enter a password below to see real-time strength assessment.</p>
-                    <input type="password" id="password-input" placeholder="Enter password">
+                    <p>A Java-based tool adapted for web use to evaluate password security. Enter a sample password below to see real-time strength assessment.</p>
+                    <p class="demo-warning"><strong>Note:</strong> This runs entirely in your browser &mdash; nothing is sent anywhere. Still, please use a <em>test</em> string, not a real password.</p>
+                    <input type="password" id="password-input" placeholder="Enter a test password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" maxlength="128">
                     <div id="strength-bar-container">
                         <div id="strength-bar"></div>
                     </div>
@@ -179,9 +206,9 @@
                 <div class="content-block card">
                     <h3>Life Update</h3>
                     <p>
-  Working on a full-stack development website, which is now live in beta @
-  <a href="https://vexel.wtf">https://www.vexel.wtf</a>
-</p>
+                        Working on a full-stack development website, which is now live in beta at
+                        <a href="https://vexel.wtf" target="_blank" rel="noopener noreferrer" class="inline-link">vexel.wtf</a>.
+                    </p>
 
                 </div>
             </div>
@@ -288,27 +315,30 @@
                 <h2>Contact Me</h2>
                 <p>I’d love to connect—whether about projects, cybersecurity, or LSU. Reach out anytime!</p>
                 
-                <form action="https://contact-form-handler.colin-lee.workers.dev/" method="POST">
+                <form action="https://contact-form-handler.colin-lee.workers.dev/" method="POST" autocomplete="on" novalidate>
                     <label for="name">Name:</label>
-                    <input type="text" id="name" name="name" placeholder="Your Name">
-                    
+                    <input type="text" id="name" name="name" placeholder="Your Name" autocomplete="name" maxlength="80">
+
                     <label for="email">Email:</label>
-                    <input type="email" id="email" name="_replyto" required placeholder="name@email.com">
-                    
+                    <input type="email" id="email" name="_replyto" required placeholder="name@email.com" autocomplete="email" maxlength="120">
+
                     <label for="subject">Subject:</label>
-                    <input type="text" id="subject" name="subject" placeholder="ex. Cyber Risk Collaboration">
-                    
+                    <input type="text" id="subject" name="subject" placeholder="ex. Cyber Risk Collaboration" autocomplete="off" maxlength="150">
+
                     <label for="message">Message:</label>
-                    <textarea id="message" name="message" rows="5" required placeholder="Tell me more..."></textarea>
-                    
-                    
+                    <textarea id="message" name="message" rows="5" required placeholder="Tell me more..." maxlength="2500"></textarea>
+
+                    <!-- Honeypot: hidden field bots fill in but humans never see.
+                         Worker can reject any submission where this is non-empty. -->
+                    <div aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">
+                        <label for="website">Website (leave blank)</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
                     <div class="cf-turnstile" data-sitekey="0x4AAAAAAB1PvBKaMsHMUxVJ" data-action="managed"></div>
-                    
+
                     <button type="submit">Send Message</button>
                 </form>
-                
-                <ul class="contact-list">
-                    </ul>
             </div>
         </section>
     </main>

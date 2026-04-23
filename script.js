@@ -1,3 +1,21 @@
+// Announcement Banner (vexel.wtf promo) — show unless dismissed previously
+const announcementBanner = document.getElementById('announcement-banner');
+if (announcementBanner) {
+  const announcementClose = announcementBanner.querySelector('.announcement-close');
+  if (localStorage.getItem('vexel-banner-dismissed') !== 'true') {
+    announcementBanner.classList.add('is-visible');
+  }
+  if (announcementClose) {
+    announcementClose.addEventListener('click', () => {
+      announcementBanner.classList.add('is-dismissing');
+      localStorage.setItem('vexel-banner-dismissed', 'true');
+      setTimeout(() => {
+        announcementBanner.classList.remove('is-visible', 'is-dismissing');
+      }, 350);
+    });
+  }
+}
+
 // Hamburger Menu Toggle
 const hamburger = document.querySelector('.hamburger');
 const navLinks = document.querySelector('.nav-links');
