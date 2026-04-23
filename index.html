@@ -72,18 +72,27 @@
             <div class="announcement-content">
                 <span class="announcement-text">
                     <span class="announcement-badge">NEW</span>
-                    My full-stack web app is live in beta —
+                    My full-stack web app is live in beta &mdash;
                     <a href="https://vexel.wtf" target="_blank" rel="noopener noreferrer">check out vexel.wtf &rarr;</a>
                 </span>
-                <button class="announcement-close" aria-label="Dismiss announcement">&times;</button>
             </div>
         </div>
 
         <section id="about" class="hero">
             <div class="content">
-                <img src="colin-photo.jpg" alt="Colin Lee" class="profile-img" width="180" height="203" fetchpriority="high"> <h2>About Me</h2>
+                <img src="colin-photo.jpg" alt="Colin Lee" class="profile-img" width="180" height="180" fetchpriority="high">
+                <span class="status-chip">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span class="status-text">Currently: LSU Junior &middot; Cyber Risk focus</span>
+                </span>
+                <h2>About Me</h2>
                 <p>I'm Colin Lee, a Louisiana State University student majoring in Information Systems and Analytics (ISDS) with a focus on Cyber Risk, and minoring in Computer Science. Driven by a passion for technology, cybersecurity, and problem-solving, I aim to contribute to secure and innovative digital solutions. Geaux Tigers!</p>
-                
+
+                <div class="hero-actions">
+                    <a href="resume.pdf" target="_blank" rel="noopener noreferrer" class="btn-cta">View Resume</a>
+                    <a href="#contact" class="btn-cta btn-cta-outline">Get in Touch</a>
+                </div>
+
                 <button id="fun-fact-btn">Fun Fact</button>
                 <div id="fun-fact" class="content-block card hidden">
                     <p>I once debugged code all night during an LSU game week!</p>
@@ -150,7 +159,21 @@
         <section id="projects">
             <div class="content">
                 <h2>Projects</h2>
-                <div class="content-block card">
+
+                <div class="content-block card project-card">
+                    <span class="project-tag">Flagship</span>
+                    <h3>Vexel &mdash; Full-Stack Web App</h3>
+                    <p>A full-stack web application I'm building from the ground up &mdash; currently live in beta. Covers modern frontend architecture, API design, authentication, and deployment on a custom domain.</p>
+                    <div class="project-tech">
+                        <span class="skill-chip">Full-Stack</span>
+                        <span class="skill-chip">Custom Domain</span>
+                        <span class="skill-chip">Auth</span>
+                    </div>
+                    <a href="https://vexel.wtf" target="_blank" rel="noopener noreferrer" class="btn-cta">Visit vexel.wtf &rarr;</a>
+                </div>
+
+                <div class="content-block card project-card">
+                    <span class="project-tag">Interactive</span>
                     <h3>Password Strength Analyzer</h3>
                     <p>A Java-based tool adapted for web use to evaluate password security. Enter a sample password below to see real-time strength assessment.</p>
                     <p class="demo-warning"><strong>Note:</strong> This runs entirely in your browser &mdash; nothing is sent anywhere. Still, please use a <em>test</em> string, not a real password.</p>
@@ -166,14 +189,53 @@
         <section id="skills">
             <div class="content">
                 <h2>Skills</h2>
-                <ul class="skills-list">
-                    <li class="card">Programming: VBA, Java, Python (basics from CS minor)</li>
-                    <li class="card">Cybersecurity: Risk Assessment, Network Security, Threat Mitigation</li>
-                    <li class="card">Data Analytics: SQL, Business Intelligence Tools</li>
-                    <li class="card">Tools: Microsoft Office Suite, Photoshop, Property Management Software</li>
-                    <li class="card">Team Collaboration: Effective teamwork in community and project settings</li>
-                    <li class="card">Graphic Design: Photoshop, 3D Modeling</li>
-                </ul>
+                <div class="skills-categories">
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Programming</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">VBA</span>
+                            <span class="skill-chip">Java</span>
+                            <span class="skill-chip">Python</span>
+                        </div>
+                    </div>
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Cybersecurity</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">Risk Assessment</span>
+                            <span class="skill-chip">Network Security</span>
+                            <span class="skill-chip">Threat Mitigation</span>
+                        </div>
+                    </div>
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Data &amp; Analytics</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">SQL</span>
+                            <span class="skill-chip">Business Intelligence</span>
+                        </div>
+                    </div>
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Tools</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">MS Office Suite</span>
+                            <span class="skill-chip">Photoshop</span>
+                            <span class="skill-chip">Property Mgmt Software</span>
+                        </div>
+                    </div>
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Soft Skills</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">Team Collaboration</span>
+                            <span class="skill-chip">Problem Solving</span>
+                        </div>
+                    </div>
+                    <div class="skill-category card">
+                        <h3 class="skill-category-title">Design</h3>
+                        <div class="skill-chips">
+                            <span class="skill-chip">Photoshop</span>
+                            <span class="skill-chip">3D Modeling</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
