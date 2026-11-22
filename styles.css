@@ -221,7 +221,7 @@ html.panel-open .callouts [data-side="right"] {
     position: absolute;
     right: 22px;
     bottom: 20px;
-    width: 230px;
+    width: 300px;
     z-index: 5;
     text-align: right;
     color: rgba(243, 239, 230, 0.92);
@@ -241,6 +241,13 @@ html.panel-open .callouts [data-side="right"] {
     display: block;
     margin: 2px 8px 4px auto;
     color: rgba(243, 239, 230, 0.7);
+}
+
+.pill-row {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .pill {
@@ -531,6 +538,30 @@ html:not(.scene) .dossier section {
     color: var(--muted);
 }
 
+.cert-kicker {
+    margin: 4px 0 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--purple-soft);
+}
+
+.cert-list {
+    margin: 0 0 16px;
+    padding-left: 1.15rem;
+}
+
+.cert-list li { margin: 0 0 4px; }
+
+.mark {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+}
+
 .also a { color: var(--ink); }
 
 .org {
@@ -794,6 +825,8 @@ html.cramped .whisper {
     width: auto;
     text-align: center;
 }
+
+html.cramped .pill-row { justify-content: center; }
 
 html.cramped .callouts {
     position: absolute;

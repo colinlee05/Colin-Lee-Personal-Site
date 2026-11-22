@@ -220,22 +220,26 @@
     let base = cramped ? h - dock - 52 : Math.min(h * 0.83, h - bottomReserve + 6);
     if (base - H < topReserve) H = Math.max(200, base - topReserve);
 
-    const hw = clamp(H * 0.058, 15, 48);
-    const engineH = H * 0.048;
-    const bodyH = H - engineH;
-    const boosterH = bodyH * 0.57;
-    const shipH = bodyH - boosterH;
-    const yBase = base;
-    const ySkirt = yBase - engineH;
-    const yJoin = ySkirt - boosterH;
-    const yTip = yJoin - shipH;
-    const noseH = shipH * 0.38;
+    const hw = clamp(H * 0.046, 13, 40);
+    const engineH = H * 0.078;
+    const skirtH = H * 0.02;
+    const hotH = H * 0.032;
+    const boosterH = H * 0.5;
+    const shipH = H - engineH - skirtH - hotH - boosterH;
+    const legH = Math.max(16, H * 0.048);
+    const yEngine = base - legH;
+    const ySkirt = yEngine - engineH;
+    const yBooster = ySkirt - skirtH;
+    const yHot = yBooster - boosterH;
+    const yShip = yHot - hotH;
+    const yTip = yShip - shipH;
+    const noseH = shipH * 0.42;
     const yNose = yTip + noseH;
 
-    const gap = Math.max(hw * 2.4, 46);
-    const towerW = clamp(H * 0.04, 14, 28);
+    const gap = Math.max(hw * 3.1, 58);
+    const towerW = clamp(H * 0.062, 20, 40);
     const towerX = cx - hw - gap - towerW;
-    const towerTop = yNose + H * 0.02;
+    const towerTop = yNose + H * 0.01;
 
     const nose = [];
     const noseL = [];
@@ -252,130 +256,150 @@
     const hull = [
       [cx - hw, yNose],
       [cx + hw, yNose],
-      [cx + hw * 1.02, yJoin],
-      [cx - hw * 1.02, yJoin],
+      [cx + hw, yShip],
+      [cx - hw, yShip],
     ];
     const booster = [
-      [cx - hw * 1.04, yJoin],
-      [cx + hw * 1.04, yJoin],
-      [cx + hw * 1.08, ySkirt],
-      [cx - hw * 1.08, ySkirt],
+      [cx - hw, yHot],
+      [cx + hw, yHot],
+      [cx + hw, yBooster],
+      [cx - hw, yBooster],
     ];
-    const band = [
-      [cx - hw * 1.12, yJoin - H * 0.006],
-      [cx + hw * 1.12, yJoin - H * 0.006],
-      [cx + hw * 1.12, yJoin + H * 0.012],
-      [cx - hw * 1.12, yJoin + H * 0.012],
+    const skirt = [
+      [cx - hw * 0.98, yBooster],
+      [cx + hw * 0.98, yBooster],
+      [cx + hw * 1.28, ySkirt],
+      [cx - hw * 1.28, ySkirt],
     ];
 
     function flap(dir, hy, len, root, tip) {
       return [
-        [cx + dir * hw, hy - root * 0.15],
-        [cx + dir * (hw + len), hy - tip * 0.42 + len * 0.05],
-        [cx + dir * (hw + len * 0.92), hy + tip * 0.62 + len * 0.18],
-        [cx + dir * hw, hy + root * 0.7],
+        [cx + dir * hw * 0.92, hy - root * 0.2],
+        [cx + dir * (hw + len), hy + len * 0.22],
+        [cx + dir * (hw + len * 0.82), hy + tip + len * 0.28],
+        [cx + dir * hw * 0.94, hy + root],
       ];
     }
-    const flapLen = hw * 1.7;
-    const fwdY = yNose + shipH * 0.02;
-    const aftY = yJoin - shipH * 0.2;
+    const flapLen = hw * 1.55;
+    const fwdY = yNose - noseH * 0.08;
+    const aftY = yShip - shipH * 0.16;
     const flaps = [
-      flap(1, fwdY, flapLen, H * 0.028, H * 0.05),
-      flap(-1, fwdY, flapLen, H * 0.028, H * 0.05),
-      flap(1, aftY, flapLen * 1.28, H * 0.036, H * 0.078),
-      flap(-1, aftY, flapLen * 1.28, H * 0.036, H * 0.078),
+      flap(1, fwdY, flapLen * 0.92, H * 0.02, H * 0.045),
+      flap(-1, fwdY, flapLen * 0.92, H * 0.02, H * 0.045),
+      flap(1, aftY, flapLen * 1.35, H * 0.028, H * 0.07),
+      flap(-1, aftY, flapLen * 1.35, H * 0.028, H * 0.07),
     ];
 
-    function fin(dir, hy) {
-      const len = hw * 1.15;
-      const th = H * 0.05;
+    function fin(dir, hy, len, th, yOff) {
+      const x0 = cx + dir * hw * 0.9;
       return [
-        [cx + dir * hw * 1.02, hy],
-        [cx + dir * (hw + len), hy - th * 0.08],
-        [cx + dir * (hw + len), hy + th * 0.78],
-        [cx + dir * hw * 1.02, hy + th],
+        [x0, hy + yOff],
+        [x0 + dir * len, hy + yOff + th * 0.08],
+        [x0 + dir * len, hy + yOff + th],
+        [x0, hy + yOff + th * 0.88],
       ];
     }
-    const finY = yJoin + boosterH * 0.18;
-    const fins = [fin(1, finY), fin(-1, finY)];
+    const finY = yHot + H * 0.012;
+    const finTh = H * 0.04;
+    const fins = [
+      fin(1, finY, hw * 1.45, finTh, 0),
+      fin(-1, finY, hw * 1.45, finTh, 0),
+      fin(1, finY, hw * 0.78, finTh * 0.82, finTh * 0.28),
+      fin(-1, finY, hw * 0.78, finTh * 0.82, finTh * 0.28),
+    ];
 
     const bells = [];
     const engines = [];
-    const bellN = 5;
-    const span = hw * 2.7;
-    for (let i = 0; i < bellN; i++) {
-      const t = i / (bellN - 1);
-      const x = cx - span / 2 + span * t;
-      const edge = Math.abs(t - 0.5) * 2;
-      const bh = engineH * (1.05 - edge * 0.28);
-      const top = ySkirt - H * 0.002;
-      const wt = hw * (0.22 - edge * 0.04);
-      const wb = hw * (0.38 - edge * 0.06);
-      bells.push([
-        [x - wt, top],
-        [x + wt, top],
-        [x + wb, top + bh],
-        [x - wb, top + bh],
-      ]);
-      engines.push({ x: x, y: top + bh });
+    function addBells(n, span, top, hScale, wScale) {
+      for (let i = 0; i < n; i++) {
+        const t = n === 1 ? 0.5 : i / (n - 1);
+        const x = cx - span / 2 + span * t;
+        const edge = Math.abs(t - 0.5) * 2;
+        const bh = engineH * hScale * (1 - edge * 0.18);
+        const wt = hw * wScale * 0.55;
+        const wb = hw * wScale;
+        bells.push([
+          [x - wt, top],
+          [x + wt, top],
+          [x + wb, top + bh],
+          [x - wb, top + bh],
+        ]);
+        engines.push({ x: x, y: top + bh });
+      }
     }
+    addBells(11, hw * 2.55, ySkirt - 1, 0.72, 0.2);
+    addBells(7, hw * 1.55, ySkirt + engineH * 0.08, 0.62, 0.16);
+    addBells(3, hw * 0.55, ySkirt + engineH * 0.18, 0.7, 0.18);
 
-    const armGap = H * 0.05;
-    const armTh = Math.max(8, H * 0.02);
-    const armY = yJoin - H * 0.01;
-    const armEnd = cx - hw - Math.max(10, hw * 0.45);
-    const armStart = towerX + towerW;
-    function beam(y) {
+    const armGap = Math.max(10, H * 0.034);
+    const armTh = Math.max(7, H * 0.016);
+    const armY = yShip + hotH * 0.15;
+    const armEnd = cx - hw - Math.max(8, hw * 0.28);
+    const armStart = towerX + towerW - 2;
+    function beam(y, x1, thick) {
       return [
         [armStart, y],
-        [armEnd, y - armTh * 0.15],
-        [armEnd, y + armTh],
-        [armStart, y + armTh * 1.05],
+        [x1, y + thick * 0.08],
+        [x1, y + thick],
+        [armStart, y + thick * 0.92],
       ];
     }
-    const arms = [beam(armY - armGap), beam(armY + armGap * 0.15)];
+    const arms = [beam(armY - armGap, armEnd, armTh), beam(armY + armGap * 0.35, armEnd, armTh)];
+    const qdY = yNose + shipH * 0.36;
+    const qd = beam(qdY, cx - hw - 5, Math.max(3.5, H * 0.008));
 
-    const compW = cramped ? 70 : clamp(H * 0.17, 72, 120);
-    const compH = compW * 0.82;
-    const compX = Math.min(
-      cx + hw + Math.max(hw * 3.1, H * 0.16),
-      w - compW - (cramped ? 12 : 200)
-    );
-    const compY = base - compH - H * 0.015;
-    const bezel = Math.max(8, compW * 0.11);
-    const chin = compH * 0.24;
+    const reach = hw + flapLen * 1.35;
+    const compW = cramped ? 64 : clamp(H * 0.15, 68, 108);
+    const compH = compW * 0.78;
+    const compX = Math.min(cx + reach + 36, w - compW - (cramped ? 14 : 36));
+    const compY = base - compH - 4;
+    const bezel = Math.max(7, compW * 0.1);
+    const chin = compH * 0.22;
     const screen = {
       x: compX + bezel,
-      y: compY + bezel * 0.65,
+      y: compY + bezel * 0.6,
       w: compW - bezel * 2,
-      h: Math.max(16, compH - chin - bezel),
+      h: Math.max(18, compH - chin - bezel),
     };
+    const rackW = cramped ? 0 : Math.max(16, compW * 0.22);
+    const rack = rackW && compX + compW + rackW + 18 < w
+      ? { x: compX + compW + 12, y: compY + compH * 0.08, w: rackW, h: compH * 0.92 }
+      : null;
 
     const anchors = {
-      nose: { x: cx, y: yTip + 2 },
-      tower: { x: towerX + towerW * 0.5, y: towerTop + 6 },
-      booster: { x: towerX - 2, y: yJoin + boosterH * 0.55 },
-      pad: { x: towerX + towerW * 0.2, y: base - 4 },
-      flap: { x: cx + hw + flapLen * 0.75, y: fwdY + 6 },
-      hull: { x: cx + hw, y: (yNose + yJoin) / 2 },
-      aft: { x: cx + hw + flapLen * 0.7, y: aftY + 8 },
-      fin: { x: cx + hw * 1.02 + hw * 1.35, y: finY + H * 0.02 },
-      terminal: { x: compX + compW, y: compY + compH * 0.35 },
+      nose: { x: cx - hw * 0.15, y: yTip + 4 },
+      tower: { x: towerX, y: towerTop + 8 },
+      booster: { x: towerX - 2, y: yHot + boosterH * 0.62 },
+      pad: { x: towerX + towerW * 0.15, y: base - 6 },
+      flap: { x: cx + hw + flapLen * 0.7, y: fwdY + 4 },
+      hull: { x: cx + hw, y: yNose + (yShip - yNose) * 0.45 },
+      aft: { x: cx + hw + flapLen * 1.05, y: aftY + 6 },
+      fin: { x: cx + hw + hw * 1.35, y: finY + finTh * 0.45 },
+      terminal: { x: (rack ? rack.x + rack.w : compX + compW), y: compY + compH * 0.42 },
     };
 
+    const shipRings = [];
+    for (let i = 1; i <= 5; i++) shipRings.push(yNose + (yShip - yNose) * i / 6);
+    const boosterRings = [];
+    for (let i = 1; i <= 14; i++) boosterRings.push(yHot + (yBooster - yHot) * i / 15);
+
     return {
-      w: w, h: h, H: H, cx: cx, hw: hw, base: base,
-      yTip: yTip, yNose: yNose, yJoin: yJoin, ySkirt: ySkirt,
+      w: w, h: h, H: H, cx: cx, hw: hw, base: base, cramped: cramped,
+      yTip: yTip, yNose: yNose, yShip: yShip, yHot: yHot, yBooster: yBooster,
+      ySkirt: ySkirt, yEngine: yEngine, noseH: noseH, shipH: shipH, hotH: hotH,
       towerX: towerX, towerW: towerW, towerTop: towerTop,
-      nose: nosePoly, hull: hull, booster: booster, band: band,
+      nose: nosePoly, hull: hull, booster: booster, skirt: skirt,
       flaps: flaps, fins: fins, bells: bells, engines: engines,
-      arms: arms, armStart: armStart, armEnd: armEnd, armY: armY, armTh: armTh, armGap: armGap,
-      rightReach: cx + hw + flapLen * 1.28,
+      arms: arms, qd: qd, armStart: armStart, armEnd: armEnd, armY: armY, armTh: armTh, armGap: armGap,
+      rightReach: cx + reach,
       leftReach: towerX,
       comp: { x: compX, y: compY, w: compW, h: compH },
+      rack: rack,
       screen: screen,
       anchors: anchors,
-      seams: [yNose + shipH * 0.28, yNose + shipH * 0.55, yJoin + boosterH * 0.28, yJoin + boosterH * 0.55, yJoin + boosterH * 0.8],
+      shipRings: shipRings,
+      boosterRings: boosterRings,
+      deckY: yEngine + H * 0.012,
     };
   }
 
@@ -404,110 +428,252 @@
         g.fillRect(x + rng() * 4, y, 1, 2);
       }
     }
-    const padL = G.towerX - 30;
-    const padR = G.comp.x + G.comp.w + 36;
-    for (let k = 0; k < 48; k++) {
-      const x = padL + rng() * (padR - padL);
-      const y = base + 1 + rng() * 8;
-      g.globalAlpha = 0.18 + rng() * 0.2;
-      g.fillRect(x, y, 6 + rng() * 14, 1);
+    if (!G.cramped && G.towerX > 150) {
+      const farm = [0.16, 0.22, 0.13, 0.19, 0.11];
+      farm.forEach(function (scale, i) {
+        const x = 36 + i * 18;
+        const hgt = G.H * scale;
+        const top = base - hgt;
+        g.globalAlpha = 0.28;
+        g.fillStyle = INK;
+        stippleLine(g, x, base, x, top, rng, 2.4, 1.1, 0.45);
+        stippleLine(g, x + 10, base, x + 10, top + 4, rng, 2.4, 1.1, 0.45);
+        g.globalAlpha = 0.35;
+        g.beginPath();
+        g.ellipse(x + 5, top + 2, 6, 2.2, 0, 0, Math.PI * 2);
+        g.fill();
+      });
+      stippleLine(g, 18, base - G.H * 0.28, 18, base, rng, 2.6, 0.5, 0.32);
+      stippleLine(g, 12, base - G.H * 0.26, 24, base - G.H * 0.26, rng, 2, 0.4, 0.32);
     }
 
+    const deck = G.deckY;
+    const mountL = G.cx - G.hw * 2.15;
+    const mountR = G.cx + G.hw * 2.15;
+    const hole = G.hw * 0.72;
+    const steel = { wash: 0.08, density: 0.07, spacing: 1.8, band: 1.6, passes: 2, edge: 0.9, fill: 0.6 };
+    paintShape(g, [
+      [mountL, deck],
+      [G.cx - hole, deck],
+      [G.cx - hole * 0.7, deck + 7],
+      [mountL + 8, deck + 7],
+    ], rng, steel);
+    paintShape(g, [
+      [G.cx + hole, deck],
+      [mountR, deck - 1],
+      [mountR - 8, deck + 7],
+      [G.cx + hole * 0.7, deck + 7],
+    ], rng, steel);
+    [[mountL + 6, mountL - G.hw * 0.35], [mountL + G.hw * 0.7, mountL + G.hw * 0.15],
+      [mountR - G.hw * 0.7, mountR - G.hw * 0.15], [mountR - 6, mountR + G.hw * 0.35]].forEach(function (pair) {
+      paintShape(g, [
+        [pair[0], deck + 5],
+        [pair[0] + 5, deck + 5],
+        [pair[1] + 4, base],
+        [pair[1] - 3, base],
+      ], rng, steel);
+    });
+    stippleLine(g, mountL, deck + 10, mountR, deck + 10, rng, 2.4, 0.6, 0.4);
+    for (let i = 0; i < 8; i++) {
+      const x = mountL + 10 + i * ((mountR - mountL - 20) / 7);
+      stippleLine(g, x, deck + 10, x, deck + 16, rng, 2, 0.4, 0.45);
+    }
+
+    drawWorkstation(g, G, rng);
+  }
+
+  function drawWorkstation(g, G, rng) {
     const c = G.comp;
+    const bezel = { wash: 0.12, density: 0.1, spacing: 1.6, band: 2.2, passes: 3, edge: 1, fill: 0.8 };
     paintShape(g, [
-      [c.x, c.y + 4],
-      [c.x + c.w, c.y + 2],
+      [c.x, c.y + 3],
+      [c.x + c.w, c.y + 1],
       [c.x + c.w - 1, c.y + c.h],
-      [c.x + 3, c.y + c.h - 1],
-    ], rng, { wash: 0.1, density: 0.09, spacing: 1.7, band: 2.4, passes: 3, edge: 1, fill: 0.75 });
-
-    const foot = c.x + c.w * 0.38;
+      [c.x + 2, c.y + c.h - 1],
+    ], rng, bezel);
+    const neckX = c.x + c.w * 0.46;
     paintShape(g, [
-      [foot + 6, c.y + c.h],
-      [foot + c.w * 0.22, c.y + c.h],
-      [foot + c.w * 0.34, base],
-      [foot - 4, base],
-    ], rng, { wash: 0.08, density: 0.08, spacing: 1.8, band: 1.5, passes: 2, edge: 0.9, fill: 0.6 });
-
-    const keyY = base - 8;
+      [neckX, c.y + c.h],
+      [neckX + c.w * 0.1, c.y + c.h],
+      [neckX + c.w * 0.16, G.base - 10],
+      [neckX - c.w * 0.04, G.base - 10],
+    ], rng, { wash: 0.08, density: 0.08, spacing: 1.8, band: 1.3, passes: 2, edge: 0.85, fill: 0.55 });
     paintShape(g, [
-      [c.x + 2, keyY],
-      [c.x + c.w - 2, keyY - 1],
-      [c.x + c.w + 10, base - 1],
-      [c.x - 8, base - 1],
-    ], rng, { wash: 0.06, density: 0.07, spacing: 2, band: 1.3, passes: 2, edge: 0.85, fill: 0.5 });
-    for (let k = 0; k < 9; k++) {
-      g.globalAlpha = 0.55;
-      g.fillRect(c.x + 6 + k * ((c.w - 8) / 9), keyY + 2, 2, 2);
+      [c.x + c.w * 0.22, G.base - 10],
+      [c.x + c.w * 0.78, G.base - 10],
+      [c.x + c.w * 0.88, G.base - 3],
+      [c.x + c.w * 0.12, G.base - 3],
+    ], rng, { wash: 0.07, density: 0.06, spacing: 1.8, band: 1.2, passes: 2, edge: 0.8, fill: 0.5 });
+
+    const keyY = G.base - 9;
+    paintShape(g, [
+      [c.x - 4, keyY],
+      [c.x + c.w + 8, keyY - 1],
+      [c.x + c.w + 14, G.base - 1],
+      [c.x - 10, G.base - 1],
+    ], rng, { wash: 0.06, density: 0.08, spacing: 1.8, band: 1.2, passes: 2, edge: 0.9, fill: 0.5 });
+    for (let row = 0; row < 3; row++) {
+      const cols = row === 2 ? 6 : 10;
+      for (let k = 0; k < cols; k++) {
+        g.globalAlpha = 0.7;
+        g.fillStyle = INK;
+        g.fillRect(c.x + 2 + k * ((c.w - 4) / cols), keyY + 1 + row * 2.4, 2, 1.6);
+      }
     }
 
-    stippleLine(g, c.x + 8, base, G.towerX + G.towerW, base + 6, rng, 3, 0.8, 0.28);
+    if (G.rack) {
+      const r = G.rack;
+      paintShape(g, [
+        [r.x, r.y],
+        [r.x + r.w, r.y],
+        [r.x + r.w, r.y + r.h],
+        [r.x, r.y + r.h],
+      ], rng, { wash: 0.1, density: 0.09, spacing: 1.6, band: 1.5, passes: 2, edge: 1, fill: 0.7 });
+      const bays = Math.max(4, Math.round(r.h / 7));
+      for (let i = 1; i < bays; i++) {
+        const y = r.y + (r.h * i) / bays;
+        stippleLine(g, r.x + 2, y, r.x + r.w - 2, y, rng, 1.8, 0.3, 0.55);
+      }
+      g.globalAlpha = 0.8;
+      g.fillRect(r.x + r.w * 0.25, r.y + 4, 2, 2);
+      stippleLine(g, c.x + c.w, c.y + c.h * 0.7, r.x, r.y + r.h * 0.4, rng, 2.4, 0.6, 0.4);
+    }
   }
 
   function drawTower(g, G, rng) {
     const x0 = G.towerX;
     const x1 = G.towerX + G.towerW;
+    const xm = (x0 + x1) / 2;
     const top = G.towerTop;
     const bot = G.base;
-    const segs = 8;
-    stippleLine(g, x0, top, x0, bot, rng, 2.2, 1.15, 0.85);
-    stippleLine(g, x1, top, x1, bot, rng, 2.2, 1.15, 0.85);
+    const segs = 12;
+    [x0, xm, x1].forEach(function (x) {
+      stippleLine(g, x, top, x, bot, rng, 2, 1.05, 0.9);
+    });
     for (let i = 0; i <= segs; i++) {
       const y = top + ((bot - top) * i) / segs;
-      stippleLine(g, x0, y, x1, y, rng, 2.4, 0.8, 0.55);
+      stippleLine(g, x0, y, x1, y, rng, 2.2, 0.7, 0.55);
       if (i < segs) {
         const y2 = top + ((bot - top) * (i + 1)) / segs;
-        stippleLine(g, x0, y, x1, y2, rng, 2.8, 0.7, 0.4);
-        stippleLine(g, x1, y, x0, y2, rng, 2.8, 0.7, 0.4);
+        stippleLine(g, x0, y, xm, y2, rng, 2.6, 0.55, 0.42);
+        stippleLine(g, xm, y, x1, y2, rng, 2.6, 0.55, 0.42);
+        stippleLine(g, xm, y, x0, y2, rng, 2.6, 0.55, 0.42);
+        stippleLine(g, x1, y, xm, y2, rng, 2.6, 0.55, 0.42);
       }
     }
-    const mastX = (x0 + x1) / 2;
-    stippleLine(g, mastX, top, mastX, top - G.H * 0.055, rng, 2.2, 0.6, 0.7);
-    G.arms.forEach(function (arm) {
-      paintShape(g, arm, rng, { wash: 0.14, density: 0.12, spacing: 1.6, band: 2.2, passes: 3, edge: 1, fill: 0.85 });
-    });
-    const grabTop = G.armY - G.armGap - 4;
-    const grabBot = G.armY + G.armGap + G.armTh + 6;
-    stippleLine(g, G.armEnd, grabTop, G.armEnd, grabBot, rng, 1.6, 1.3, 1);
-    stippleLine(g, G.armEnd + 3, grabTop + 2, G.armEnd + 3, grabBot - 2, rng, 1.8, 0.8, 0.7);
-    stippleLine(g, G.armStart, G.armY - G.armGap, G.armStart, G.armY + G.armGap + G.armTh, rng, 2, 1.2, 0.65);
+    stippleLine(g, xm, top, xm, top - G.H * 0.04, rng, 2.2, 0.5, 0.6);
+    const carriage = {
+      wash: 0.12, density: 0.1, spacing: 1.6, band: 1.6, passes: 2, edge: 1, fill: 0.75,
+    };
+    paintShape(g, [
+      [x1 - 3, G.armY - G.armGap - 12],
+      [x1 + 7, G.armY - G.armGap - 12],
+      [x1 + 7, G.armY + G.armGap + G.armTh + 16],
+      [x1 - 3, G.armY + G.armGap + G.armTh + 16],
+    ], rng, carriage);
+    const armOpt = { wash: 0.16, density: 0.13, spacing: 1.5, band: 2, passes: 3, edge: 1, fill: 0.9 };
+    G.arms.forEach(function (arm) { paintShape(g, arm, rng, armOpt); });
+    paintShape(g, G.qd, rng, { wash: 0.1, density: 0.08, spacing: 1.7, band: 1.2, passes: 2, edge: 0.95, fill: 0.7 });
+    const grabTop = G.armY - G.armGap - 2;
+    const grabBot = G.armY + G.armGap + G.armTh + 4;
+    stippleLine(g, G.armEnd, grabTop, G.armEnd, grabBot, rng, 1.5, 1.2, 1);
+    stippleLine(g, G.armEnd + 4, grabTop + 3, G.armEnd + 4, grabBot - 2, rng, 1.7, 0.7, 0.75);
+    const qd = G.qd;
+    const qx = qd[1][0];
+    const qy = qd[1][1];
+    paintShape(g, [
+      [qx - 2, qy - 4],
+      [qx + 5, qy - 4],
+      [qx + 5, qy + 8],
+      [qx - 2, qy + 8],
+    ], rng, carriage);
+  }
+
+  function drawGrid(g, fin, rng) {
+    const x0 = fin[0][0];
+    const x1 = fin[1][0];
+    const y0 = Math.min(fin[0][1], fin[1][1]);
+    const y1 = Math.max(fin[2][1], fin[3][1]);
+    for (let i = 1; i <= 4; i++) {
+      const y = y0 + ((y1 - y0) * i) / 5;
+      stippleLine(g, x0, y, x1, y, rng, 1.8, 0.35, 0.7);
+    }
+    for (let i = 1; i <= 3; i++) {
+      const x = x0 + ((x1 - x0) * i) / 4;
+      stippleLine(g, x, y0, x, y1, rng, 1.8, 0.35, 0.65);
+    }
+  }
+
+  function drawTiles(g, G, rng) {
+    const tile = Math.max(3.2, G.H * 0.0072);
+    const x0 = G.cx + G.hw * 0.16;
+    const x1 = G.cx + G.hw * 0.9;
+    const y0 = G.yTip + G.noseH * 0.45;
+    const y1 = G.yShip - 2;
+    g.fillStyle = INK;
+    let row = 0;
+    for (let y = y0; y < y1; y += tile) {
+      const shift = (row % 2) * tile * 0.5;
+      row++;
+      for (let x = x0 + shift; x < x1; x += tile) {
+        const mx = x + tile * 0.45;
+        const my = y + tile * 0.45;
+        if (!inside(G.hull, mx, my) && !inside(G.nose, mx, my)) continue;
+        g.globalAlpha = 0.5;
+        g.strokeStyle = INK;
+        g.lineWidth = 0.6;
+        g.strokeRect(x, y, tile * 0.82, tile * 0.82);
+      }
+    }
   }
 
   function drawShip(g, G, rng) {
-    const hullOpt = { wash: 0.09, density: 0.085, spacing: 1.7, band: 2.4, passes: 3, edge: 1, fill: 0.8 };
-    const partOpt = { wash: 0.08, density: 0.07, spacing: 1.7, band: 2, passes: 2, edge: 1, fill: 0.7 };
+    const hullOpt = { wash: 0.11, density: 0.1, spacing: 1.6, band: 2.3, passes: 3, edge: 1, fill: 0.85 };
+    const partOpt = { wash: 0.09, density: 0.08, spacing: 1.6, band: 1.8, passes: 2, edge: 1, fill: 0.75 };
     G.bells.forEach(function (b) { paintShape(g, b, rng, partOpt); });
+    paintShape(g, G.skirt, rng, partOpt);
     paintShape(g, G.booster, rng, hullOpt);
-    paintShape(g, G.band, rng, partOpt);
     paintShape(g, G.hull, rng, hullOpt);
     paintShape(g, G.nose, rng, hullOpt);
+
+    g.save();
+    g.globalCompositeOperation = "destination-out";
+    g.fillStyle = "rgba(0,0,0,0.62)";
+    g.fillRect(G.cx + G.hw * 0.12, G.yTip + G.noseH * 0.42, G.hw * 0.7, G.yShip - G.yTip - G.noseH * 0.4);
+    g.fillRect(G.cx + G.hw * 0.1, G.yHot + 2, G.hw * 0.72, (G.yBooster - G.yHot) * 0.35);
+    g.restore();
+
+    const edge = G.hw * 0.9;
+    G.shipRings.forEach(function (y) {
+      stippleLine(g, G.cx - edge, y, G.cx + edge, y, rng, 2, 0.4, 0.55);
+    });
+    G.boosterRings.forEach(function (y) {
+      stippleLine(g, G.cx - edge, y, G.cx + edge, y, rng, 2, 0.35, 0.5);
+    });
+    stippleLine(g, G.cx - G.hw * 0.55, G.yNose, G.cx - G.hw * 0.5, G.yBooster, rng, 2.4, 0.5, 0.4);
+    stippleLine(g, G.cx + G.hw * 0.62, G.yHot, G.cx + G.hw * 0.66, G.yBooster, rng, 2.2, 0.7, 0.48);
+
+    const vents = 8;
+    const slotW = (G.hw * 2.3) / vents;
+    for (let i = 0; i < vents; i++) {
+      if (i % 2 === 0) continue;
+      const x = G.cx - G.hw * 1.15 + i * slotW;
+      paintShape(g, [
+        [x, G.yShip + 1],
+        [x + slotW * 0.62, G.yShip + 1],
+        [x + slotW * 0.62, G.yHot - 1],
+        [x, G.yHot - 1],
+      ], rng, partOpt);
+    }
+    stippleLine(g, G.cx - G.hw * 1.16, G.yShip, G.cx + G.hw * 1.16, G.yShip, rng, 1.7, 0.4, 0.85);
+    stippleLine(g, G.cx - G.hw * 1.16, G.yHot, G.cx + G.hw * 1.16, G.yHot, rng, 1.7, 0.4, 0.85);
+
+    drawTiles(g, G, rng);
     G.fins.forEach(function (f) {
       paintShape(g, f, rng, partOpt);
-      const x0 = f[0][0];
-      const x1 = f[1][0];
-      const y0 = f[0][1];
-      const y1 = f[3][1];
-      for (let i = 1; i <= 3; i++) {
-        const y = y0 + ((y1 - y0) * i) / 4;
-        stippleLine(g, x0, y, x1, y - 1, rng, 2.2, 0.5, 0.45);
-      }
-      stippleLine(g, (x0 + x1) / 2, y0, (x0 + x1) / 2, y1, rng, 2.4, 0.5, 0.4);
+      drawGrid(g, f, rng);
     });
     G.flaps.forEach(function (f) { paintShape(g, f, rng, partOpt); });
-
-    const left = G.cx - G.hw * 0.92;
-    const right = G.cx + G.hw * 0.92;
-    G.seams.forEach(function (y) {
-      stippleLine(g, left, y, right, y, rng, 2.3, 0.6, 0.4);
-    });
-    stippleLine(g, G.cx + G.hw * 0.45, G.yNose, G.cx + G.hw * 0.5, G.ySkirt, rng, 2.6, 0.7, 0.4);
-
-    for (let i = 0; i < 26; i++) {
-      const ang = rng() * Math.PI * 2;
-      const rad = G.hw * 1.4 + rng() * 18;
-      const y = G.yNose + rng() * (G.ySkirt - G.yNose);
-      spray(g, G.cx + Math.cos(ang) * rad * 0.35, y, rng, 0.28);
-    }
   }
 
   function rebuild() {
@@ -618,19 +784,26 @@
   }
 
   function launchOffset(ms) {
-    const rise = Math.min(geo.H * 0.11, 78);
-    if (ms < 380) return 0;
-    if (ms < 1500) {
-      const t = (ms - 380) / 1120;
+    const rise = Math.min(geo.H * 0.2, 130);
+    if (ms < 320) return 0;
+    if (ms < 1700) {
+      const t = (ms - 320) / 1380;
       return -rise * (1 - Math.pow(1 - t, 3));
     }
-    if (ms < 2100) return -rise;
-    if (ms < 3300) {
-      const t = (ms - 2100) / 1200;
+    if (ms < 2500) return -rise;
+    if (ms < 4000) {
+      const t = (ms - 2500) / 1500;
       const s = t * t * (3 - 2 * t);
       return -rise * (1 - s);
     }
     return 0;
+  }
+
+  function thrust(ms) {
+    if (ms < 140 || ms > 3100) return 0;
+    if (ms < 420) return (ms - 140) / 280;
+    if (ms < 2400) return 1;
+    return Math.max(0, 1 - (ms - 2400) / 700);
   }
 
   function drawSky(now) {
@@ -718,6 +891,46 @@
     });
   }
 
+  function drawPlume(now) {
+    if (reduce || !launchStart || !geo) return;
+    const t = thrust(now - launchStart);
+    if (t <= 0) return;
+    ctx.fillStyle = INK;
+    const n = Math.round(170 * t);
+    for (let i = 0; i < n; i++) {
+      const e = geo.engines[(Math.random() * geo.engines.length) | 0];
+      const k = Math.random();
+      const y = e.y + shipShift + k * (geo.deckY - e.y) * (0.55 + 0.45 * t);
+      const spread = (6 + k * k * geo.hw * 2.6) * t;
+      ctx.globalAlpha = (1 - k) * 0.62 * t;
+      ctx.fillRect(e.x + (Math.random() - 0.5) * spread, y, k > 0.75 ? 2.6 : 1.3, k > 0.75 ? 2.6 : 1.3);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawClamps(now) {
+    if (!geo) return;
+    const ms = launchStart ? now - launchStart : 0;
+    const open = !launchStart || reduce ? 0 : Math.max(0, Math.min(1, (ms - 180) / 420));
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.6;
+    ctx.globalAlpha = 0.9;
+    const y = geo.deckY + 2;
+    const len = Math.max(10, geo.hw * 0.55);
+    [-1, 1].forEach(function (dir) {
+      const x = geo.cx + dir * geo.hw * 0.95;
+      const ang = dir * (0.15 + open * 1.15);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(Math.abs(ang)) * len * 0.45);
+      ctx.moveTo(x, y + 4);
+      ctx.lineTo(x + Math.cos(ang) * len * 0.7, y + 4 + Math.sin(Math.abs(ang)) * len * 0.3);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
   function drawParticles() {
     ctx.fillStyle = INK;
     for (let i = 0; i < particles.length; i++) {
@@ -747,7 +960,9 @@
       }
     }
     ctx.drawImage(shipLayer.c, px + shakeX, shipShift + py + shakeY, view.w, view.h);
+    drawPlume(now);
     drawParticles();
+    drawClamps(now);
     drawScreen(now);
     drawLeaders();
 
@@ -774,7 +989,7 @@
     if (launchStart) {
       const ms = now - launchStart;
       shipShift = reduce ? 0 : launchOffset(ms);
-      if (ms > 3600) {
+      if (ms > 4300) {
         launchStart = 0;
         shipShift = 0;
       }
@@ -784,30 +999,59 @@
     shipHot.style.transform = "translate(" + (reduce ? 0 : mouse.x * 2.2) + "px," + (shipShift + (reduce ? 0 : mouse.y * 1.4)) + "px)";
 
     if (!reduce && geo) {
-      const power = launchStart && now - launchStart < 2500 && now - launchStart > 180 ? 1 : 0;
-      const idle = !power && Math.random() < 0.12;
-      if (power || idle) {
-        const bursts = power ? 3 : 1;
-        for (let n = 0; n < bursts; n++) {
-          if (particles.length > 200) break;
+      const ms = launchStart ? now - launchStart : 0;
+      const power = thrust(ms);
+      if (power > 0.05) {
+        const exhaustN = Math.round(10 * power);
+        for (let n = 0; n < exhaustN && particles.length < 380; n++) {
           const e = geo.engines[(Math.random() * geo.engines.length) | 0];
-          const scale = power ? 1 : 0.35;
           particles.push({
-            x: e.x + (Math.random() - 0.5) * 10,
+            x: e.x + (Math.random() - 0.5) * 8,
             y: e.y + shipShift,
-            vx: (Math.random() - 0.5) * 22 * scale,
-            vy: (16 + Math.random() * 46) * scale,
-            life: 0.28 + Math.random() * 0.45,
-            s: Math.random() > 0.82 ? 2 : 1,
+            vx: (Math.random() - 0.5) * 30 * power,
+            vy: (30 + Math.random() * 70) * power,
+            life: 0.35 + Math.random() * 0.4,
+            s: Math.random() > 0.7 ? 2.4 : 1.3,
+            kind: "exhaust",
           });
         }
+        if (particles.length < 380 && Math.random() < 0.8) {
+          particles.push({
+            x: geo.cx + (Math.random() - 0.5) * geo.hw * 2.2,
+            y: geo.deckY - 4,
+            vx: (Math.random() - 0.5) * 18,
+            vy: -(10 + Math.random() * 28),
+            life: 0.5 + Math.random() * 0.5,
+            s: 1.2,
+            kind: "spray",
+          });
+        }
+        if (particles.length < 380) {
+          particles.push({
+            x: geo.cx + (Math.random() - 0.5) * geo.hw,
+            y: geo.engines[0].y + shipShift + 6,
+            vx: (Math.random() - 0.5) * 10,
+            vy: 8 + Math.random() * 14,
+            life: 0.9 + Math.random() * 0.7,
+            s: 2.2 + Math.random() * 2.2,
+            kind: "smoke",
+          });
+        }
+      } else if (Math.random() < 0.18 && particles.length < 40) {
+        const e = geo.engines[(Math.random() * geo.engines.length) | 0];
+        particles.push({
+          x: e.x, y: e.y, vx: (Math.random() - 0.5) * 4, vy: 8,
+          life: 0.35, s: 1, kind: "exhaust",
+        });
       }
     }
     for (let i = particles.length - 1; i >= 0; i--) {
       const p = particles[i];
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.vy += 18 * dt;
+      if (p.kind === "smoke") p.vy += 6 * dt;
+      else if (p.kind === "spray") p.vy += 22 * dt;
+      else p.vy += 28 * dt;
       p.life -= dt;
       if (p.life <= 0) particles.splice(i, 1);
     }
@@ -832,7 +1076,7 @@
   }
 
   function ignite() {
-    if (launchStart && performance.now() - launchStart < 3400) return;
+    if (launchStart && performance.now() - launchStart < 4200) return;
     launchStart = performance.now();
     live.textContent = reduce
       ? "Launch sequence held still, because motion is reduced."
@@ -1002,6 +1246,7 @@
     vexel: "https://vexel.wtf",
     x: "https://twitter.com/colinlee05",
     ig: "https://instagram.com/colinlee.05",
+    in: "https://www.linkedin.com/in/colinlee05",
   };
 
   function say(text) {
@@ -1044,10 +1289,10 @@
       ].join("\n");
     },
     whoami: function () {
-      return "Colin Lee — LSU junior, Information Systems & Analytics (Cyber Risk), Computer Science minor. Geaux Tigers.";
+      return "Colin Lee — LSU senior, Information Systems & Analytics (Cyber Risk), Computer Science minor. Geaux Tigers.";
     },
     status: function () {
-      return "Currently: LSU Junior · Cyber Risk focus\nExpected graduation: Spring 2027 · GPA 3.8";
+      return "Currently: LSU Senior · Cyber Risk focus\nExpected graduation: Spring 2027 · GPA 3.8";
     },
     ls: function () {
       return "about  education  certifications  projects  skills\nexperience  updates  publications  resources  social  contact";
@@ -1074,6 +1319,7 @@
     social: function () {
       sayLink("X  ", "x");
       sayLink("Instagram  ", "ig");
+      sayLink("LinkedIn  ", "in");
       return "";
     },
     geaux: function () {
