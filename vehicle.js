@@ -717,7 +717,6 @@
       w: w, h: h, cramped: cramped,
       ship: ship, booster: booster, tower: tower, pad: pad,
       tower2: buildTowerLines(-16),
-      farTower: buildTowerLines(128, -18, 0.46),
       towerX: towerX,
       cam0: cam,
       ui: ui,
@@ -1128,7 +1127,7 @@
       ox: model.w * (model.cramped ? 0.55 : 0.56),
       oy: model.h * 0.5,
       lookX: mix(28, CATCH2_X, tighten),
-      lookY: mix(ly * 0.42 + 80, 104, tighten)
+      lookY: mix(ly * 0.42 + 80, 86, tighten)
     };
     pose.shipIn = 1;
     pose.depart = 1 - ramp(t, 28.35, 29.0);
@@ -1231,19 +1230,95 @@
     ctx.globalAlpha = 1;
   }
 
+  var PAD_APART = 360;
+
+  function drawHorizon(ctx, cam, model) {
+    var g = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam);
+    var y = g.y;
+    if (y < 8 || y > model.h - 4) return y;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = INK;
+    ctx.lineWidth = 1.3;
+    ctx.globalAlpha = 0.72;
+    ctx.beginPath();
+    ctx.moveTo(12, Math.round(y) + 0.5);
+    ctx.lineTo(model.w - 12, Math.round(y) + 0.5);
+    ctx.stroke();
+    var i;
+    for (i = 0; i < 110; i++) {
+      var x = 16 + ((i * 97) % Math.max(20, model.w - 32));
+      var dy = 2 + (i * 17) % 14;
+      if (y + dy > model.h - 6) continue;
+      ctx.globalAlpha = 0.08 + (i % 4) * 0.035;
+      ctx.fillRect(x, y + dy, i % 6 === 0 ? 2.2 : 1.3, 1.2);
+    }
+    ctx.restore();
+    return y;
+  }
+
+  function drawAnchoredTower(ctx, model, cam, spec) {
+    var horizon = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam);
+    var dist = Math.abs(spec.x - (cam.lookX || 0));
+    var shrink = 260 / (260 + Math.max(200, dist));
+    var local = {
+      scale: cam.scale * shrink,
+      ox: cam.ox,
+      oy: horizon.y,
+      lookX: cam.lookX || 0,
+      lookY: 0,
+      yaw: cam.yaw == null ? YAW : cam.yaw
+    };
+    var top = project({ x: spec.x, y: TOWER, z: 0 }, local);
+    var base = project({ x: spec.x, y: 0, z: 0 }, local);
+    if (top.y > model.h + 8 || base.y < -8) return;
+    if (base.x < -40 || base.x > model.w + 40) return;
+    var shift = spec.x - model.towerX;
+    var pose = { x: shift, y: 0, rot: 0, pivotX: 0, pivotY: 0, z: 0 };
+    strokeAll(ctx, model.tower, pose, local, spec.alpha);
+    drawChopsticks(ctx, local, model.towerX + shift, spec.chopY, spec.open, spec.alpha);
+    var feet = [];
+    var hw = 4.1;
+    var sx, sz;
+    for (sx = -1; sx <= 1; sx += 2) {
+      for (sz = -1; sz <= 1; sz += 2) {
+        line(feet,
+          { x: spec.x + sx * hw, y: 0, z: sz * hw },
+          { x: spec.x + sx * hw, y: 42, z: sz * hw },
+          1, 1.45);
+      }
+    }
+    strokeAll(ctx, feet, null, local, Math.min(0.92, spec.alpha + 0.3));
+    var footL = project({ x: spec.x - 7, y: 0, z: 0 }, local);
+    var footR = project({ x: spec.x + 8, y: 0, z: 0 }, local);
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.4;
+    ctx.globalAlpha = Math.min(0.92, spec.alpha + 0.3);
+    ctx.beginPath();
+    ctx.moveTo(footL.x, horizon.y);
+    ctx.lineTo(footR.x, horizon.y);
+    ctx.stroke();
+    ctx.restore();
+    if (spec.booster) {
+      var b = spec.booster;
+      drawBody(ctx, model.booster, bodyPose(b.x + shift, b.y, b.rot || 0, b.pivotY), local, spec.alpha * 0.92);
+    }
+  }
+
   function drawPad(ctx, model, pose) {
     var cam = pose.cam || model.cam0;
     var t = pose.t || 0;
+    drawHorizon(ctx, cam, model);
     strokeAll(ctx, model.pad, null, cam, 1);
     strokeAll(ctx, model.tower, null, cam, 1);
-    if (!model.cramped && model.farTower && cam.scale > model.cam0.scale * 0.55 && (pose.padFade == null || pose.padFade > 0.85)) {
-      var farTop = project({ x: 128, y: TOWER * 0.46, z: -18 }, cam);
-      var farBot = project({ x: 128, y: 0, z: -18 }, cam);
-      var vw = ctx.canvas.clientWidth || model.w;
-      var vh = ctx.canvas.clientHeight || model.h;
-      if (farTop.x > 24 && farTop.x < vw - 24 && farBot.x > 24 && farBot.x < vw - 24 && farBot.y < vh - 8 && farTop.y > 8) {
-        strokeAll(ctx, model.farTower, null, cam, 0.62);
-      }
+    if (!model.cramped) {
+      drawAnchoredTower(ctx, model, cam, {
+        x: PAD_APART,
+        alpha: 0.62,
+        chopY: BELL + BOOST - 6.4,
+        open: 0.72
+      });
     }
     drawBody(ctx, model.booster, pose.booster, cam, 1);
     var shipA = pose.depart == null ? 1 : pose.depart;
@@ -1277,18 +1352,15 @@
     var ship = pose.landShip || pose.ship;
     var t = pose.t || 0;
     var shipA = pose.shipIn == null ? 1 : pose.shipIn;
-    if (t > 46.5) {
-      var far = {
-        scale: cam.scale * 0.32,
-        ox: model.w * 0.14,
-        oy: cam.oy + model.h * 0.06,
-        lookX: model.towerX,
-        lookY: 74,
-        yaw: cam.yaw || YAW
-      };
-      strokeAll(ctx, model.tower, null, far, 0.32);
-      drawBody(ctx, model.booster, bodyPose(CATCH_X, CATCH_Y, 0, BOOST / 2), far, 0.28);
-      drawChopsticks(ctx, far, model.towerX, CATCH_Y + (BOOST / 2 - 6.4), 0.1, 0.28);
+    drawHorizon(ctx, cam, model);
+    if (t > 46.5 && !model.cramped) {
+      drawAnchoredTower(ctx, model, cam, {
+        x: -PAD_APART,
+        alpha: 0.58,
+        chopY: CATCH_Y + (BOOST / 2 - 6.4),
+        open: 0.1,
+        booster: bodyPose(CATCH_X, CATCH_Y, 0, BOOST / 2)
+      });
     }
     strokeAll(ctx, model.pad, null, cam, 0.85);
     strokeAll(ctx, model.tower2, null, cam, 1);
