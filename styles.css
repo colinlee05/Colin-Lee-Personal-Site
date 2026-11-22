@@ -907,16 +907,20 @@ html.cramped #skip-mission {
 }
 
 html.mission .caption {
-    top: 56px;
+    top: 78px;
+    left: 18px;
     bottom: auto;
-    max-width: min(420px, 42%);
+    max-width: min(380px, calc(100% - 250px));
     text-shadow: 0 1px 2px #0c0b0e;
 }
 
 html.cramped.mission .caption {
-    top: 84px;
-    max-width: calc(100% - 28px);
+    top: 98px;
+    left: 16px;
+    max-width: calc(100% - 32px);
 }
+
+#why-rocket { margin-bottom: 0.2em; }
 
 .payload {
     position: absolute;

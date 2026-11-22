@@ -1149,6 +1149,7 @@
   }
 
   function openPanel(id, opts) {
+    if (id === "why-rocket") id = "about";
     opts = opts || {};
     const section = document.getElementById(id);
     if (!section || !sceneOn()) return;
