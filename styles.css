@@ -887,6 +887,12 @@ html.mission .legal { opacity: 0; pointer-events: none; }
     z-index: 8;
 }
 
+html.cramped #skip-mission {
+    top: 48px;
+    left: 12px;
+    transform: none;
+}
+
 .caption {
     position: absolute;
     left: 16px;
@@ -900,19 +906,38 @@ html.mission .legal { opacity: 0; pointer-events: none; }
     color: var(--ink);
 }
 
+html.mission .caption {
+    top: 56px;
+    bottom: auto;
+    max-width: min(420px, 42%);
+    text-shadow: 0 1px 2px #0c0b0e;
+}
+
+html.cramped.mission .caption {
+    top: 84px;
+    max-width: calc(100% - 28px);
+}
+
 .payload {
     position: absolute;
     z-index: 7;
-    width: min(220px, calc(100vw - 24px));
     margin: 0;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border: 1px solid rgba(243, 239, 230, 0.45);
     background: rgba(10, 9, 12, 0.92);
     color: var(--ink);
     font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.35;
+    font-size: 11.5px;
+    line-height: 1.28;
+    overflow: hidden;
     pointer-events: none;
+    transform-origin: 20% 40%;
+}
+
+html.cramped .payload {
+    font-size: 10.5px;
+    line-height: 1.25;
+    padding: 5px 6px;
 }
 
 .summary {

@@ -51,12 +51,16 @@
     var x = p.x - cam.lookX;
     var y = p.y - cam.lookY;
     var z = p.z || 0;
-    var c = Math.cos(YAW);
-    var s = Math.sin(YAW);
+    var yaw = cam && cam.yaw != null ? cam.yaw : YAW;
+    var c = Math.cos(yaw);
+    var s = Math.sin(yaw);
     var xr = x * c + z * s;
     var zr = -x * s + z * c;
-    var k = cam.scale * (1 + zr * 0.01);
-    return { x: cam.ox + xr * k, y: cam.oy - y * k };
+    var persp = zr * 0.006;
+    if (persp > 0.1) persp = 0.1;
+    if (persp < -0.1) persp = -0.1;
+    var k = cam.scale * (1 + persp);
+    return { x: cam.ox + xr * k, y: cam.oy - y * k, k: k };
   }
 
   function xform(p, pose) {
@@ -80,9 +84,10 @@
     return { x: n.x * c - n.y * s, y: n.x * s + n.y * c, z: n.z };
   }
 
-  function facing(n) {
-    var s = Math.sin(YAW);
-    var c = Math.cos(YAW);
+  function facing(n, yaw) {
+    var yy = yaw == null ? YAW : yaw;
+    var s = Math.sin(yy);
+    var c = Math.cos(yy);
     return -n.x * s + n.z * c;
   }
 
@@ -131,26 +136,129 @@
     }
   }
 
-  function flap(arr, pts) {
+  /* Forward and aft flaps. Hinge azimuth 0 is leeward (+X), PI is the tiled
+     windward belly. Real hinges sit just leeward of the port and starboard
+     edges; the planform folds toward the lee side, so neither flap grows out
+     of the heat shield. Coordinates are meters in the ship frame. */
+  function addFlap(lines, dots, spec) {
+    var phi = spec.phi;
+    var nx = Math.cos(phi);
+    var nz = Math.sin(phi);
+    var lee = spec.lee;
+    var ox = nx * (1 - lee) + lee;
+    var oz = nz * (1 - lee);
+    var ol = Math.hypot(ox, oz) || 1;
+    ox /= ol;
+    oz /= ol;
+    var bx = oz;
+    var bz = -ox;
+    var thick = spec.thick;
+    var N = 9;
+
+    function at(y, span, side) {
+      var hull = shipRadius(y);
+      var td = thick * side;
+      return {
+        x: nx * (hull + 0.06) + ox * span + bx * td,
+        y: y + side * thick * 0.65,
+        z: nz * (hull + 0.06) + oz * span + bz * td
+      };
+    }
+    function rootY(c) { return spec.yLE + (spec.yTE - spec.yLE) * c; }
+    function tipY(c) {
+      var tipLE = spec.yLE - spec.sweep;
+      var tipTE = tipLE - spec.tipChord;
+      return tipLE + (tipTE - tipLE) * c;
+    }
+    function rootSpan(c) {
+      return spec.rootGap + Math.sin(c * Math.PI) * spec.fillet;
+    }
+    function tipSpan(c) {
+      return spec.spanLE + (spec.spanTE - spec.spanLE) * c;
+    }
+
+    var outline = [];
     var i;
-    for (i = 0; i < pts.length; i++) line(arr, pts[i], pts[(i + 1) % pts.length], 0.95, 1.25);
-    var midH = {
-      x: (pts[0].x + pts[1].x) / 2,
-      y: (pts[0].y + pts[1].y) / 2,
-      z: (pts[0].z + pts[1].z) / 2
-    };
-    var midO = {
-      x: (pts[2].x + pts[3].x) / 2,
-      y: (pts[2].y + pts[3].y) / 2,
-      z: (pts[2].z + pts[3].z) / 2
-    };
-    line(arr, midH, midO, 0.55, 0.9);
-    line(arr, pts[0], midO, 0.28, 0.7);
-    line(arr, pts[1], midO, 0.28, 0.7);
+    for (i = 0; i <= N; i++) outline.push(at(tipY(i / N), tipSpan(i / N), 1));
+    for (i = N; i >= 0; i--) outline.push(at(rootY(i / N), rootSpan(i / N), 1));
+    if (spec.ghost) {
+      for (i = 0; i < N; i++) {
+        line(lines, outline[i], outline[i + 1], 0.42, 0.9);
+      }
+      line(lines, outline[0], outline[outline.length - 1], 0.28, 0.8);
+      return;
+    }
+    for (i = 0; i < outline.length; i++) {
+      line(lines, outline[i], outline[(i + 1) % outline.length], 0.98, 1.35);
+    }
+    for (i = 0; i < N; i++) {
+      var u0 = i / N;
+      var u1 = (i + 1) / N;
+      line(lines, at(tipY(u0), tipSpan(u0), -1), at(tipY(u1), tipSpan(u1), -1), 0.72, 1);
+      line(lines, at(rootY(u0), rootSpan(u0), -1), at(rootY(u1), rootSpan(u1), -1), 0.4, 0.75);
+    }
+    line(lines, at(tipY(0), tipSpan(0), 1), at(tipY(0), tipSpan(0), -1), 0.9, 1.15);
+    line(lines, at(tipY(1), tipSpan(1), 1), at(tipY(1), tipSpan(1), -1), 0.9, 1.15);
+    var rib;
+    for (rib = 1; rib <= 3; rib++) {
+      var u = rib / 4;
+      line(lines, at(rootY(u), rootSpan(u), 1), at(tipY(u), tipSpan(u), 1), 0.62, 0.85);
+      line(lines, at(rootY(u), rootSpan(u) + 0.15, 1), at(rootY(u), rootSpan(u) + 0.15, -1), 0.55, 0.8);
+    }
+
+    var bands = 4;
+    var b;
+    for (b = 0; b <= bands; b++) {
+      var prev = null;
+      for (i = 0; i <= N; i++) {
+        var u = i / N;
+        var span = rootSpan(u) * (b / bands);
+        var arch = Math.sin((b / bands) * Math.PI) * spec.cover;
+        var p = at(rootY(u), span, 1);
+        p.x += bx * arch;
+        p.z += bz * arch;
+        if (prev) line(lines, prev, p, b === 0 || b === bands ? 0.82 : 0.4, 0.9);
+        prev = p;
+      }
+    }
+    for (i = 0; i <= N; i += 2) {
+      var u = i / N;
+      line(lines, at(rootY(u), 0.04, 1), at(rootY(u), rootSpan(u), 1), 0.5, 0.8);
+    }
+
+    var row;
+    var col;
+    for (row = 0; row <= 14; row++) {
+      for (col = 0; col <= 8; col++) {
+        var u = row / 14;
+        var v = col / 8;
+        var span = rootSpan(u) + (tipSpan(u) - rootSpan(u)) * v;
+        var y = rootY(u) + (tipY(u) - rootY(u)) * v;
+        var face = at(y, span, 1);
+        var back = at(y, span, -1);
+        var lift = 0.22 - v * 0.18;
+        dots.push({ x: face.x, y: face.y, z: face.z, nx: bx, ny: lift, nz: bz, tile: 0 });
+        dots.push({ x: back.x, y: back.y, z: back.z, nx: -bx, ny: lift, nz: -bz, tile: 0 });
+      }
+    }
   }
 
-  function mirrorFlap(pts) {
-    return pts.map(function (p) { return { x: -p.x, y: p.y, z: p.z }; });
+  function addFlaps(lines, dots) {
+    var sides = [1.02, -1.02];
+    var s;
+    for (s = 0; s < sides.length; s++) {
+      var ghost = sides[s] < 0;
+      addFlap(lines, dots, {
+        phi: sides[s], lee: 0.84, thick: 0.48, ghost: ghost,
+        yLE: 48.6, yTE: 36.8, sweep: 7.2, tipChord: 2.35,
+        spanLE: 5.8, spanTE: 3.15, rootGap: 0.06, fillet: 1.85, cover: 0.9
+      });
+      addFlap(lines, dots, {
+        phi: sides[s], lee: 0.8, thick: 0.55, ghost: ghost,
+        yLE: 23.2, yTE: 2.2, sweep: 9.6, tipChord: 5.4,
+        spanLE: 8.6, spanTE: 5.5, rootGap: 0.08, fillet: 2.5, cover: 1.15
+      });
+    }
   }
 
   function buildShip() {
@@ -203,28 +311,7 @@
       { x: R * 0.15, y: SHIP - NOSE, z: R * 0.98 },
       0.55, 0.8);
 
-    var fwd = [
-      { x: R + 0.2, y: SHIP - 9.6, z: 0.35 },
-      { x: R + 0.45, y: SHIP - 17.8, z: 0.2 },
-      { x: R + 6.4, y: SHIP - 21.8, z: 1.15 },
-      { x: R + 5.2, y: SHIP - 10.4, z: 1.45 }
-    ];
-    flap(lines, fwd);
-    flap(lines, mirrorFlap(fwd));
-    fairing(lines, fwd[0], fwd[1]);
-    fairing(lines, { x: -fwd[0].x, y: fwd[0].y, z: fwd[0].z }, { x: -fwd[1].x, y: fwd[1].y, z: fwd[1].z });
-
-    var aft = [
-      { x: R + 0.25, y: 14.6, z: 0.4 },
-      { x: R + 0.5, y: 2.6, z: 0.15 },
-      { x: R + 7.6, y: 0.6, z: 1.05 },
-      { x: R + 5.8, y: 13.2, z: 1.4 }
-    ];
-    flap(lines, aft);
-    flap(lines, mirrorFlap(aft));
-    fairing(lines, aft[0], aft[1]);
-    fairing(lines, { x: -aft[0].x, y: aft[0].y, z: aft[0].z }, { x: -aft[1].x, y: aft[1].y, z: aft[1].z });
-
+    addFlaps(lines, dots);
     addHex(lines);
     addShipEngines(lines, dots);
     return { dots: dots, lines: lines, pivotX: 0, pivotY: SHIP / 2 };
@@ -235,21 +322,6 @@
     while (d > Math.PI) d -= Math.PI * 2;
     while (d < -Math.PI) d += Math.PI * 2;
     return d;
-  }
-
-  function fairing(arr, top, bot) {
-    var i;
-    for (i = 0; i < 5; i++) {
-      var t = i / 4;
-      var y = top.y + (bot.y - top.y) * t;
-      var x = top.x + (bot.x - top.x) * t;
-      cylRing(arr, y, 0.01, 0, 0);
-      line(arr,
-        { x: x + 0.15, y: y, z: 0.15 },
-        { x: x + 0.55, y: y, z: 0.45 },
-        0.8, 1);
-    }
-    line(arr, { x: top.x + 0.35, y: top.y, z: 0.3 }, { x: bot.x + 0.35, y: bot.y, z: 0.3 }, 0.9, 1.3);
   }
 
   function addHex(arr) {
@@ -601,6 +673,8 @@
     var model = {
       w: w, h: h, cramped: cramped,
       ship: ship, booster: booster, tower: tower, pad: pad,
+      tower2: buildTowerLines(-16),
+      farTower: buildTowerLines(42),
       towerX: towerX,
       cam0: cam,
       ui: ui,
@@ -647,7 +721,7 @@
         tower: { x: towerL.x, y: P(-21, 130, 0).y },
         booster: { x: towerL.x, y: P(-21, BELL + 30, 0).y },
         pad: { x: P(-8, DECK, 0).x, y: P(-8, DECK, 0).y },
-        flap: { x: P(9.2, BELL + BOOST + SHIP - 16, 0).x, y: P(9.2, BELL + BOOST + SHIP - 16, 0).y },
+        flap: { x: P(9.4, BELL + BOOST + 44, 1.4).x, y: P(9.4, BELL + BOOST + 44, 1.4).y },
         hull: { x: P(R, BELL + BOOST + 24, 0).x, y: P(R, BELL + BOOST + 24, 0).y },
         aft: { x: P(10, BELL + BOOST + 8, 0).x, y: P(10, BELL + BOOST + 8, 0).y },
         fin: { x: P(8.2, BELL + BOOST - 6, 0).x, y: P(8.2, BELL + BOOST - 6, 0).y },
@@ -658,132 +732,61 @@
     };
   }
 
-  function padPose() {
-    return {
-      ship: { x: 0, y: BELL + BOOST + SHIP / 2, rot: 0, pivotX: 0, pivotY: SHIP / 2, thrust: 0, plasma: 0 },
-      booster: { x: 0, y: BELL + BOOST / 2, rot: 0, pivotX: 0, pivotY: BOOST / 2, thrust: 0 },
-      qd: 0,
-      clamps: 0,
-      steam: 0,
-      sticksOpen: 0.72,
-      sticksY: BELL + BOOST - 2,
-      scene: "pad",
-      blend: 0,
-      ang: 0,
-      deorbit: 0,
-      tower2: 0
-    };
-  }
+  /* Flight profile. Cinematic clock (about 50 s) in the same order as a
+     Starship flight, scaled down from public Flight 5 / Flight 6 timing.
 
-  function poseAt(model, t) {
-    var pose = padPose();
-    var cam = {
-      scale: model.cam0.scale,
-      ox: model.cam0.ox,
-      oy: model.cam0.oy,
-      lookX: 0,
-      lookY: 0
-    };
-    var beat = "Pad.";
-    if (t < 1.7) {
-      pose.qd = t / 1.7;
-      beat = "Ship quick-disconnect swinging clear.";
-    } else if (t < 3.4) {
-      pose.qd = 1;
-      var u = (t - 1.7) / 1.7;
-      pose.clamps = u;
-      pose.steam = u;
-      pose.booster.thrust = u;
-      beat = "Engines lighting. Deluge on the mount.";
-    } else if (t < 8.2) {
-      pose.qd = 1;
-      pose.clamps = 1;
-      pose.steam = 1;
-      pose.booster.thrust = 1;
-      var u2 = (t - 3.4) / 4.8;
-      var rise = u2 * u2 * 120;
-      pose.ship.y += rise;
-      pose.booster.y += rise;
-      cam.oy = model.h * 0.62;
-      cam.lookY = BELL + 40 + rise * 0.55;
-      cam.scale = model.cam0.scale * (1 - u2 * 0.18);
-      beat = "Liftoff.";
-    } else if (t < 11.2) {
-      pose.qd = 1;
-      pose.clamps = 1;
-      var u3 = (t - 8.2) / 3;
-      var baseRise = 120;
-      pose.booster.y += baseRise + u3 * 6;
-      pose.booster.thrust = 0.45 * (1 - u3);
-      pose.ship.y += baseRise + 8 + u3 * 36;
-      pose.ship.thrust = 0.35 + u3 * 0.65;
-      cam.oy = model.h * 0.55;
-      cam.lookY = BELL + BOOST / 2 + baseRise * 0.45;
-      cam.scale = model.cam0.scale * 0.55;
-      beat = "Hot staging. Ship separates.";
-    } else if (t < 19) {
-      var u4 = (t - 11.2) / 7.8;
-      pose.ship.y = BELL + BOOST + SHIP / 2 + 210 + u4 * 40;
-      pose.ship.thrust = u4 < 0.2 ? 0.5 : 0;
-      var rot = u4 < 0.28 ? (u4 / 0.28) * 170 : u4 < 0.55 ? 170 - ((u4 - 0.28) / 0.27) * 170 : 0;
-      pose.booster.rot = rot;
-      pose.booster.thrust = u4 < 0.82 ? 0.9 : 0.25;
-      pose.booster.x = -8.5 * smooth(Math.min(1, u4 / 0.7));
-      pose.booster.y = BELL + BOOST / 2 + 55 * (1 - smooth(Math.min(1, Math.max(0, (u4 - 0.2) / 0.7))));
-      pose.sticksY = pose.booster.y + 6;
-      pose.sticksOpen = u4 < 0.78 ? 0.9 : 0.9 - ((u4 - 0.78) / 0.22) * 0.75;
-      cam.lookX = -8;
-      cam.lookY = pose.booster.y;
-      cam.oy = model.h * 0.58;
-      cam.ox = model.w * 0.55;
-      cam.scale = model.cam0.scale * 0.8;
-      beat = u4 < 0.45 ? "Booster flips and boosts back." : "Chopsticks close. Booster caught.";
-    } else if (t < 22.2) {
-      pose.scene = "blend";
-      pose.blend = (t - 19) / 3.2;
-      pose.ship.y = BELL + BOOST + SHIP / 2 + 230;
-      cam.scale = model.cam0.scale * (0.58 - pose.blend * 0.4);
-      cam.lookY = 80;
-      beat = "Ship continues. The view pulls out.";
-    } else if (t < 34) {
-      pose.scene = "earth";
-      pose.ang = ((t - 22.2) / 12) * Math.PI * 1.55;
-      pose.deorbit = t > 31.5 ? (t - 31.5) / 2.5 : 0;
-      beat = t < 31.5 ? "On orbit. Payloads away." : "Deorbit burn.";
-    } else if (t < 43.5) {
-      pose.scene = "landing";
-      var u5 = (t - 34) / 9.5;
-      pose.plasma = u5 < 0.48 ? Math.min(1, u5 / 0.2) : Math.max(0, 1 - (u5 - 0.48) / 0.18);
-      pose.ship.rot = u5 < 0.62 ? 90 : Math.max(0, 90 - ((u5 - 0.62) / 0.16) * 90);
-      pose.ship.thrust = u5 > 0.7 ? 1 : 0;
-      var landY = 96 + (1 - smooth(Math.max(0, (u5 - 0.7) / 0.26))) * 28;
-      var aside = u5 < 0.68 ? 34 : 34 * (1 - Math.min(1, (u5 - 0.68) / 0.18));
-      pose.ship.x = -8 + aside;
-      pose.ship.y = landY;
-      pose.sticksOpen = u5 < 0.84 ? 0.95 : 0.95 - ((u5 - 0.84) / 0.16) * 0.8;
-      pose.sticksY = landY + 4;
-      pose.tower2 = 1;
-      pose.cam = {
-        scale: model.cam0.scale * 0.85,
-        ox: model.w * (model.cramped ? 0.62 : 0.58),
-        oy: model.h * 0.72,
-        lookX: -4,
-        lookY: landY
-      };
-      beat = u5 < 0.4 ? "Reentry. Heat shield takes the plasma." : u5 < 0.6 ? "Belly-flop." : u5 < 0.8 ? "Flip and landing burn." : "Caught on the second tower.";
-    } else if (t < 46.5) {
-      pose.scene = "blendback";
-      pose.blend = (t - 43.5) / 3;
-      beat = "Back on the pad.";
-    } else {
-      pose.done = true;
-      beat = "Back on the pad.";
-    }
-    pose.beat = beat;
-    pose.cam = cam;
-    pose.t = t;
-    return pose;
-  }
+     Real beat (approx)          Clock    What the picture shows
+     -------------------------   -----    ---------------------------------
+     T-3 s  QD arm retracts      0-1.5    arm swings off the ship
+     T+0    Raptor startup       1.5-2.6  deluge, plume grows from the mount
+     T+2 s  liftoff              2.6-5    slow rise, clamps open
+     T+8 s  tower clear          5-7.2    stack above the tower, still near vertical
+     T+60 s max-Q                7.2-10.4 pitched ~20°, engines dip
+     T+2:40 MECO / hot stage     10.6-13  ship Raptors light while still mated,
+                                          exhaust leaves the vented ring, then
+                                          the ship pulls away along its axis
+     +10 s  booster flip         13-17    one continuous rotation, engines
+                                          swing to face back toward the pad
+     +40 s  boostback            14-18    plume toward the launch site
+     +6 min descent              16-21    arrives beside the tower still tilted, arms open
+     landing burn                21-24    two seconds tilting upright, plume on
+     hover                       24-25    vertical, beside the open arms, at least a second
+     catch                       25-27    arms close over a second, then a small settle
+     pullback                    28-33    tower shrinks and drops off screen
+     orbit                       34-43    globe fades in only after the tower is gone
+     deorbit                     41-43    engines face along the velocity
+     reentry                     44-51    ship fades in from above, tower already in frame
+     flip, hover, catch          51-57    two-second flip, hover, arms close
+     reset                       58-61    tower and ship fade together
+
+     The pose is a pure function of t. The tilt, the flip, and the arm close
+     are linear over their own holds, so each one stays readable at playback
+     speed. The globe never shares the frame with the launch tower. The second
+     tower is on screen for the whole descent. */
+
+  var T_SPLIT = 12.2;
+  var CATCH_X = -1.6;
+  var CATCH_Y = 92;
+  var CATCH2_X = -3.6;
+  var CATCH2_Y = 86;
+  var T_END = 61.4;
+
+  var ANCHOR_Y = [
+    { t: 0, v: BELL }, { t: 2.55, v: BELL },
+    { t: 3.4, v: BELL + 8 }, { t: 4.6, v: BELL + 32 },
+    { t: 6.2, v: BELL + 86 }, { t: 8.4, v: BELL + 176 },
+    { t: 10.6, v: BELL + 292 }, { t: 12.2, v: BELL + 400 }
+  ];
+  var ANCHOR_X = [
+    { t: 0, v: 0 }, { t: 4.8, v: 0 },
+    { t: 6.6, v: 8 }, { t: 8.6, v: 22 },
+    { t: 10.6, v: 40 }, { t: 12.2, v: 58 }
+  ];
+  var ANCHOR_A = [
+    { t: 0, v: 0 }, { t: 4.8, v: 0 },
+    { t: 6.5, v: -8 }, { t: 8.6, v: -18 },
+    { t: 10.6, v: -28 }, { t: 12.2, v: -34 }
+  ];
 
   function smooth(t) {
     if (t < 0) return 0;
@@ -791,12 +794,318 @@
     return t * t * (3 - 2 * t);
   }
 
+  function clamp(t, a, b) {
+    return t < a ? a : t > b ? b : t;
+  }
+
+  function mix(a, b, u) {
+    return a + (b - a) * u;
+  }
+
+  function lin(keys, t) {
+    if (t <= keys[0].t) return keys[0].v;
+    var i;
+    for (i = 1; i < keys.length; i++) {
+      if (t <= keys[i].t) {
+        var a = keys[i - 1];
+        var b = keys[i];
+        var u = (t - a.t) / (b.t - a.t);
+        return a.v + (b.v - a.v) * u;
+      }
+    }
+    return keys[keys.length - 1].v;
+  }
+
+  function ramp(t, a, b) {
+    if (t <= a) return 0;
+    if (t >= b) return 1;
+    return smooth((t - a) / (b - a));
+  }
+
+  function span(t, a, b) {
+    if (t <= a) return 0;
+    if (t >= b) return 1;
+    return (t - a) / (b - a);
+  }
+
+  function hash(i) {
+    var x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  function fract(x) {
+    return x - Math.floor(x);
+  }
+
+  function bodyPose(x, y, rot, pivotY) {
+    return {
+      x: x, y: y, z: 0, rot: rot, pivotX: 0, pivotY: pivotY,
+      thrust: 0, plasma: 0, door: 0
+    };
+  }
+
+  function stackBodies(ax, ay, ang) {
+    var a = ang * Math.PI / 180;
+    var s = Math.sin(a);
+    var c = Math.cos(a);
+    return {
+      booster: bodyPose(ax - s * (BOOST / 2), ay + c * (BOOST / 2), ang, BOOST / 2),
+      ship: bodyPose(ax - s * (BOOST + SHIP / 2), ay + c * (BOOST + SHIP / 2), ang, SHIP / 2)
+    };
+  }
+
+  function slide(pose, dist, drot) {
+    var a = pose.rot * Math.PI / 180;
+    return bodyPose(
+      pose.x - Math.sin(a) * dist,
+      pose.y + Math.cos(a) * dist,
+      pose.rot + drot,
+      pose.pivotY
+    );
+  }
+
+  function blendCam(a, b, u) {
+    return {
+      scale: mix(a.scale, b.scale, u),
+      ox: mix(a.ox, b.ox, u),
+      oy: mix(a.oy, b.oy, u),
+      lookX: mix(a.lookX, b.lookX, u),
+      lookY: mix(a.lookY, b.lookY, u)
+    };
+  }
+
+  function padPose() {
+    return {
+      ship: bodyPose(0, BELL + BOOST + SHIP / 2, 0, SHIP / 2),
+      booster: bodyPose(0, BELL + BOOST / 2, 0, BOOST / 2),
+      qd: 0,
+      clamps: 0,
+      steam: 0,
+      shock: 0,
+      sticksOpen: 0.72,
+      sticksY: BELL + BOOST - 6.4,
+      sticks2Open: 1,
+      sticks2Y: CATCH2_Y + (34 - SHIP / 2),
+      landShip: null,
+      landCam: null,
+      useHero: false,
+      worldAlpha: 1,
+      earthAlpha: 0,
+      landIn: 0,
+      landShow: 0,
+      heroIn: 0,
+      padFade: 1,
+      depart: 1,
+      veil: 0,
+      earthIn: 1,
+      entry: 0,
+      door: 0,
+      deorbit: 0,
+      ang: -0.35,
+      scene: "pad",
+      beat: "Pad.",
+      t: 0,
+      done: false
+    };
+  }
+
+  function beatFor(t) {
+    if (t < 1.45) return "Ship quick-disconnect swinging clear.";
+    if (t < 2.55) return "Raptors lighting. Water deluge on the mount.";
+    if (t < 5.1) return "Liftoff.";
+    if (t < 7.2) return "Tower clear.";
+    if (t < 10.5) return "Max-Q. Engines easing.";
+    if (t < 12.2) return "MECO. Ship engines light through the vented ring.";
+    if (t < 13.6) return "Hot staging. The ship pulls away.";
+    if (t < 17.6) return "Booster flips and boosts back.";
+    if (t < 21.3) return "Booster descent.";
+    if (t < 23.6) return "Landing burn. Booster tilting upright.";
+    if (t < 25.1) return "Booster hovering beside the open arms.";
+    if (t < 27.2) return "Chopsticks close and take the booster.";
+    if (t < 34.0) return "Pulling back from the tower.";
+    if (t < 35.2) return "Ship on orbit.";
+    if (t < 36.4) return "Payload door opening.";
+    if (t < 40.8) return "Satellites deploying.";
+    if (t < 42.8) return "Deorbit burn. Engines face forward.";
+    if (t < 50.8) return "Reentry. Plasma on the heat shield.";
+    if (t < 53.0) return "Flip to vertical. Landing burn.";
+    if (t < 54.4) return "Ship hovering beside the open arms.";
+    if (t < 56.4) return "Chopsticks close and take the ship.";
+    if (t < 59.0) return "Caught on the second tower.";
+    return "Back on the pad.";
+  }
+
+  function poseAt(model, t) {
+    var pose = padPose();
+    pose.t = t;
+    pose.beat = beatFor(t);
+    pose.done = t >= T_END;
+    var ax = lin(ANCHOR_X, Math.min(t, T_SPLIT));
+    var ay = lin(ANCHOR_Y, Math.min(t, T_SPLIT));
+    var ang = lin(ANCHOR_A, Math.min(t, T_SPLIT));
+    var stacked = stackBodies(ax, ay, ang);
+    var split = stackBodies(lin(ANCHOR_X, T_SPLIT), lin(ANCHOR_Y, T_SPLIT), lin(ANCHOR_A, T_SPLIT));
+
+    if (t <= T_SPLIT) {
+      pose.ship = stacked.ship;
+      pose.booster = stacked.booster;
+    } else {
+      var dist = lin([
+        { t: T_SPLIT, v: 0 }, { t: 13.2, v: 14 }, { t: 15.4, v: 48 },
+        { t: 18.5, v: 130 }, { t: 26, v: 280 }, { t: 34, v: 420 }
+      ], t);
+      pose.ship = slide(split.ship, dist, mix(0, -6, ramp(t, 14, 20)));
+      var b0 = split.booster;
+      var bx = mix(b0.x, 32, ramp(t, 12.2, 16.4));
+      var by = mix(b0.y, b0.y + 16, ramp(t, 12.2, 15.4));
+      var br = mix(b0.rot, -200, ramp(t, 12.2, 16.2));
+      bx = mix(bx, 8, ramp(t, 16.4, 21.2));
+      by = mix(by, CATCH_Y + 14, ramp(t, 16.4, 21.2));
+      br = mix(br, -325, ramp(t, 16.4, 21.2));
+      var tilt = span(t, 21.4, 23.6);
+      bx = mix(bx, CATCH_X, tilt);
+      by = mix(by, CATCH_Y + 5, tilt);
+      br = mix(br, -360, tilt);
+      by = mix(by, CATCH_Y, span(t, 26.2, 27.1));
+      pose.booster = bodyPose(bx, by, br, BOOST / 2);
+    }
+
+    var bTh = ramp(t, 1.45, 2.45);
+    var dip = ramp(t, 7.15, 7.75) * (1 - ramp(t, 8.55, 9.25));
+    bTh *= 1 - 0.4 * dip;
+    var meco = ramp(t, 10.55, 11.4);
+    bTh = bTh * (1 - meco) + 0.1 * meco;
+    if (t >= T_SPLIT) {
+      var residual = 0.1 * (1 - ramp(t, T_SPLIT, T_SPLIT + 0.7));
+      var bb = ramp(t, 13.3, 14.0) * (1 - ramp(t, 16.6, 17.4));
+      var landBurn = ramp(t, 21.2, 21.7) * (1 - ramp(t, 25.4, 26.5));
+      bTh = residual + bb * 0.95 + landBurn;
+    }
+    pose.booster.thrust = bTh;
+    pose.shock = dip;
+    pose.ship.thrust = ramp(t, 10.65, 11.75) * (1 - ramp(t, 15.7, 16.5));
+    pose.qd = ramp(t, 0.15, 1.55);
+    pose.clamps = ramp(t, 2.15, 2.75);
+    pose.steam = ramp(t, 1.35, 2.15) * (1 - ramp(t, 6.4, 8.3));
+
+    var pin0 = BELL + BOOST - 6.4;
+    var pinCatch = CATCH_Y + (BOOST / 2 - 6.4);
+    pose.sticksY = mix(pin0, pinCatch, ramp(t, 17.6, 20.6));
+    pose.sticksOpen = mix(0.72 + 0.26 * ramp(t, 0.2, 1.75), 0.14, span(t, 25.1, 26.3));
+
+    var follow = ramp(t, 2.65, 6.1);
+    var scaleMul = 1 - 0.42 * ramp(t, 2.85, 7.4);
+    var scale = model.cam0.scale * scaleMul;
+    var targetSy = mix(model.cam0.oy - ay * model.cam0.scale, model.h * 0.58, follow);
+    var targetSx = mix(model.cam0.ox, model.w * 0.5, follow);
+    var ascentCam = {
+      scale: scale,
+      ox: targetSx - ax * (1 - follow) * scale,
+      oy: targetSy + ay * (1 - follow) * scale,
+      lookX: ax * follow,
+      lookY: ay * follow
+    };
+    var pull = ramp(t, 28.2, 32.4);
+    var catchScale = model.cam0.scale * mix(0.56, 0.82, ramp(t, 17.4, 19.6));
+    var boostCam = {
+      scale: mix(catchScale, model.cam0.scale * 0.05, pull),
+      ox: model.w * (model.cramped ? 0.52 : 0.56),
+      oy: mix(model.h * 0.52, model.h * 1.28, pull),
+      lookX: pose.booster.x,
+      lookY: pose.booster.y
+    };
+    pose.cam = blendCam(ascentCam, boostCam, ramp(t, 13.8, 17.2));
+
+    var belly = span(t, 44.0, 50.8);
+    var flip = span(t, 51.0, 53.0);
+    var ly = mix(640, 168, belly);
+    var lx = mix(86, 24, belly);
+    lx = mix(lx, CATCH2_X, flip);
+    ly = mix(ly, CATCH2_Y + 6, flip);
+    ly = mix(ly, CATCH2_Y, span(t, 55.5, 56.4));
+    var lrot = mix(90, 0, flip);
+    pose.landShip = bodyPose(lx, ly, lrot, SHIP / 2);
+    pose.landShip.thrust = ramp(t, 50.7, 51.3) * (1 - ramp(t, 54.6, 55.6));
+    pose.landShip.plasma = ramp(t, 44.4, 45.2) * (1 - ramp(t, 49.4, 50.6));
+    pose.sticks2Y = CATCH2_Y + (34 - SHIP / 2);
+    pose.sticks2Open = mix(0.98, 0.14, span(t, 54.4, 55.6));
+    var widen = span(t, 44.0, 50.6);
+    var closeIn = span(t, 50.6, 53.2);
+    var unit = model.cam0.scale / 5.05;
+    pose.landCam = {
+      scale: mix(mix(1.55, 2.55, widen), 4.05, closeIn) * unit * (model.cramped ? 0.78 : 1),
+      ox: model.w * (model.cramped ? 0.55 : 0.56),
+      oy: model.h * 0.5,
+      lookX: mix(mix(18, 2, widen), CATCH2_X, closeIn),
+      lookY: mix(mix(300, 175, widen), 102, closeIn)
+    };
+    pose.shipIn = ramp(t, 44.2, 45.8);
+    pose.depart = 1 - ramp(t, 18.2, 19.6);
+    pose.padFade = 1 - ramp(t, 30.5, 31.4);
+
+    pose.worldAlpha = (1 - ramp(t, 33.0, 34.2)) * (t >= 57.2 ? 0 : 1);
+    pose.landShow = ramp(t, 44.2, 45.8) * (1 - ramp(t, 57.2, 58.6));
+    pose.heroIn = ramp(t, 59.0, 60.6);
+    pose.veil = 0;
+    pose.earthAlpha = ramp(t, 34.0, 35.4) * (1 - ramp(t, 42.6, 43.8));
+    pose.earthIn = ramp(t, 34.0, 35.6);
+    pose.landIn = pose.landShow;
+    pose.useHero = pose.heroIn > 0.004;
+    pose.door = ramp(t, 34.6, 36.0) * (1 - ramp(t, 40.4, 41.3));
+    pose.deorbit = ramp(t, 41.0, 41.7) * (1 - ramp(t, 42.2, 43.0));
+    pose.retro = ramp(t, 40.6, 42.0);
+    pose.entry = ramp(t, 42.2, 43.2) * (1 - ramp(t, 44.6, 45.4));
+    pose.ang = 2.15 + Math.max(0, t - 34.2) * 0.07;
+    if (pose.landShow > pose.earthAlpha && pose.landShow > 0.5 && pose.heroIn < 0.5) pose.scene = "landing";
+    else if (pose.earthAlpha > pose.worldAlpha && t < 44) pose.scene = "earth";
+    else pose.scene = "pad";
+    return pose;
+  }
+
+
+  function missionSeconds(model, now) {
+    var m = model.mission;
+    if (!m) return 0;
+    if (m.t0 == null) return m.elapsed || 0;
+    return (now - m.t0) / 1000;
+  }
+
   function start(model, now) {
-    model.mission = { t0: now };
+    model.mission = { t0: now, elapsed: 0 };
   }
 
   function stop(model) {
     model.mission = null;
+  }
+
+  function hold(model, now) {
+    if (!model || !model.mission || model.mission.t0 == null) return;
+    model.mission.elapsed = (now - model.mission.t0) / 1000;
+    model.mission.t0 = null;
+  }
+
+  function resume(model, now) {
+    if (!model || !model.mission || model.mission.t0 != null) return;
+    model.mission.t0 = now - (model.mission.elapsed || 0) * 1000;
+  }
+
+  function seek(model, seconds, now) {
+    model.mission = { t0: now - seconds * 1000, elapsed: seconds };
+  }
+
+  function fadeCtx(ctx, alpha) {
+    if (alpha >= 0.999) return ctx;
+    return new Proxy(ctx, {
+      get: function (target, prop) {
+        var v = target[prop];
+        return typeof v === "function" ? v.bind(target) : v;
+      },
+      set: function (target, prop, value) {
+        if (prop === "globalAlpha") target.globalAlpha = alpha * Number(value);
+        else target[prop] = value;
+        return true;
+      }
+    });
   }
 
   function active(model) {
@@ -804,75 +1113,80 @@
   }
 
   function paint(ctx, model, now) {
-    var pose = model.mission ? poseAt(model, (now - model.mission.t0) / 1000) : padPose();
+    var pose = model.mission ? poseAt(model, missionSeconds(model, now)) : padPose();
     if (pose.done) {
       model.mission = null;
       pose = padPose();
     }
     model.last = pose;
-    if (pose.scene === "earth") {
-      drawEarth(ctx, model, pose);
-      return;
+    model._cards = [];
+    ctx.save();
+    if (pose.landShow > 0.004 && pose.heroIn < 0.004) {
+      drawLanding(fadeCtx(ctx, pose.landShow), model, pose);
     }
-    if (pose.scene === "blend") {
-      drawPad(ctx, model, pose);
-      ctx.save();
-      ctx.globalAlpha = pose.blend;
-      drawEarth(ctx, model, { ang: 0.2, deorbit: 0, t: pose.t });
-      ctx.restore();
-      return;
+    if (pose.worldAlpha > 0.004 && !pose.useHero && pose.padFade > 0.004) {
+      drawPad(fadeCtx(ctx, pose.worldAlpha * pose.padFade), model, pose);
     }
-    if (pose.scene === "blendback") {
-      if (pose.blend > 0.8) {
-        drawPad(ctx, model, padPose());
-        return;
-      }
-      drawLanding(ctx, model, poseAt(model, 43.4));
-      ctx.save();
-      ctx.globalAlpha = pose.blend;
-      drawPad(ctx, model, padPose());
-      ctx.restore();
-      return;
+    if (pose.heroIn > 0.004) {
+      var hero = padPose();
+      hero.showComputer = true;
+      hero.t = 0;
+      hero.depart = 1;
+      drawPad(fadeCtx(ctx, pose.heroIn), model, hero);
     }
-    if (pose.scene === "landing") {
-      drawLanding(ctx, model, pose);
-      return;
-    }
-    drawPad(ctx, model, pose);
+    if (pose.earthAlpha > 0.004) drawEarth(fadeCtx(ctx, pose.earthAlpha), model, pose);
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   function drawPad(ctx, model, pose) {
     var cam = pose.cam || model.cam0;
+    var t = pose.t || 0;
     strokeAll(ctx, model.pad, null, cam, 1);
     strokeAll(ctx, model.tower, null, cam, 1);
-    if (!model.cramped) strokeAll(ctx, buildTowerLines(42), null, cam, 0.18);
+    if (!model.cramped && model.farTower && (pose.padFade == null || pose.padFade > 0.85)) {
+      strokeAll(ctx, model.farTower, null, cam, 0.18);
+    }
     drawBody(ctx, model.booster, pose.booster, cam, 1);
-    drawBody(ctx, model.ship, pose.ship, cam, 1);
+    var shipA = pose.depart == null ? 1 : pose.depart;
+    if (shipA > 0.02) drawBody(ctx, model.ship, pose.ship, cam, shipA);
     drawChopsticks(ctx, cam, model.towerX, pose.sticksY, pose.sticksOpen, 1);
     drawQD(ctx, cam, model.towerX, pose.qd, pose.ship);
     drawClamps(ctx, cam, pose.clamps);
-    if (pose.steam > 0.05) drawSteam(ctx, cam, pose.steam);
-    if (pose.booster.thrust > 0.05) drawExhaust(ctx, cam, pose.booster, 2.2, pose.booster.thrust, model);
-    if (pose.ship.thrust > 0.05) drawExhaust(ctx, cam, pose.ship, 0.4, pose.ship.thrust * 0.7, model);
-    if (pose.plasma > 0.05) drawPlasma(ctx, model.ship, pose.ship, cam, pose.plasma);
-    if (!model.mission) drawComputer(ctx, model);
+    if (pose.steam > 0.04) drawSteam(ctx, cam, pose.steam, t);
+    if (pose.shock > 0.04) drawShock(ctx, cam, pose, pose.shock);
+    if (pose.ship.thrust > 0.12) {
+      var base = xform({ x: 0, y: 0, z: 0 }, pose.ship);
+      var top = xform({ x: 0, y: BOOST, z: 0 }, pose.booster);
+      if (Math.hypot(base.x - top.x, base.y - top.y) < 16) {
+        drawVents(ctx, cam, pose.booster, pose.ship.thrust, t);
+      }
+    }
+    if (pose.booster.thrust > 0.04) {
+      drawPlume(ctx, cam, pose.booster, 1.05, pose.booster.thrust, t, 10);
+      drawCore(ctx, cam, pose.booster, 1.15, 0.72, pose.booster.thrust, 3);
+    }
+    if (pose.ship.thrust > 0.04) {
+      drawPlume(ctx, cam, pose.ship, -0.25, pose.ship.thrust, t, 80);
+      drawCore(ctx, cam, pose.ship, -0.15, 2.05, pose.ship.thrust, 3);
+    }
+    if (!model.mission || pose.showComputer) drawComputer(ctx, model);
   }
 
   function drawLanding(ctx, model, pose) {
-    var cam = pose.cam || {
-      scale: model.cam0.scale * 0.85,
-      ox: model.w * 0.58,
-      oy: model.h * 0.72,
-      lookX: -4,
-      lookY: pose.ship.y
-    };
-    var tower = buildTowerLines(-16);
-    strokeAll(ctx, tower, null, cam, 1);
-    strokeAll(ctx, model.pad, null, cam, 0.8);
-    drawBody(ctx, model.ship, pose.ship, cam, 1);
-    drawChopsticks(ctx, cam, -16, pose.sticksY, pose.sticksOpen, 1);
-    if (pose.ship.thrust > 0.05) drawExhaust(ctx, cam, pose.ship, 1.2, pose.ship.thrust, model);
-    if (pose.plasma > 0.05) drawPlasma(ctx, model.ship, pose.ship, cam, pose.plasma);
+    var cam = pose.landCam || pose.cam || model.cam0;
+    var ship = pose.landShip || pose.ship;
+    var t = pose.t || 0;
+    var shipA = pose.shipIn == null ? 1 : pose.shipIn;
+    strokeAll(ctx, model.pad, null, cam, 0.85);
+    strokeAll(ctx, model.tower2, null, cam, 1);
+    drawBody(ctx, model.ship, ship, cam, shipA);
+    drawChopsticks(ctx, cam, -16, pose.sticks2Y, pose.sticks2Open, 1);
+    if (ship.thrust > 0.04 && shipA > 0.05) {
+      drawPlume(ctx, cam, ship, -0.25, ship.thrust * shipA, t, 90);
+      drawCore(ctx, cam, ship, -0.15, 2.05, ship.thrust * shipA, 3);
+    }
+    if (ship.plasma > 0.04 && shipA > 0.05) drawPlasma(ctx, ship, cam, ship.plasma * shipA, t);
   }
 
   function drawBody(ctx, body, pose, cam, alpha) {
@@ -881,7 +1195,7 @@
     for (i = 0; i < body.dots.length; i++) {
       var d = body.dots[i];
       var n = rotN(d, pose.rot);
-      if (facing(n) < -0.08) continue;
+      if (facing(n, cam && cam.yaw) < -0.08) continue;
       var p = project(xform(d, pose), cam);
       var lit = shade(n, d.y);
       if (d.tile) lit *= 0.42;
@@ -900,6 +1214,7 @@
       if (ln.alpha <= 0) continue;
       var a = project(pose ? xform(ln.a, pose) : ln.a, cam);
       var b = project(pose ? xform(ln.b, pose) : ln.b, cam);
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 1400) continue;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
@@ -967,59 +1282,157 @@
     }
   }
 
-  function drawSteam(ctx, cam, amount) {
+  function drawSteam(ctx, cam, amount, t) {
+    if (amount < 0.04) return;
     var i;
     ctx.fillStyle = INK;
-    for (i = 0; i < 80 * amount; i++) {
-      var a = Math.random() * Math.PI * 2;
-      var rr = Math.random() * 14;
+    for (i = 0; i < 70; i++) {
+      var phase = fract(hash(i + 4) * 1.7 + t * (0.22 + hash(i + 9) * 0.28));
+      var ang = hash(i + 2) * Math.PI * 2;
+      var rad = (2 + hash(i + 6) * 11) * (0.25 + phase);
       var p = project({
-        x: Math.cos(a) * rr,
-        y: DECK + Math.random() * 10 * amount,
-        z: Math.sin(a) * rr
+        x: Math.cos(ang) * rad,
+        y: DECK + phase * (5 + amount * 11),
+        z: Math.sin(ang) * rad
       }, cam);
-      ctx.globalAlpha = (1 - rr / 14) * 0.35 * amount;
-      ctx.fillRect(p.x, p.y, 1.6, 1.6);
+      ctx.globalAlpha = (1 - phase) * 0.32 * amount;
+      ctx.fillRect(p.x, p.y, 1.8, 1.8);
     }
   }
 
-  function drawExhaust(ctx, cam, pose, localY, power, model) {
+  function drawCore(ctx, cam, pose, localY, radius, power, nBells) {
+    if (power < 0.08) return;
+    var i;
+    var b;
+    ctx.fillStyle = INK;
+    for (b = 0; b < nBells; b++) {
+      var ang = (b / nBells) * Math.PI * 2 + 0.35;
+      var origin = xform({
+        x: Math.cos(ang) * radius,
+        y: localY,
+        z: Math.sin(ang) * radius
+      }, pose);
+      var tip = xform({
+        x: Math.cos(ang) * radius,
+        y: localY - 1,
+        z: Math.sin(ang) * radius
+      }, pose);
+      var dx = tip.x - origin.x;
+      var dy = tip.y - origin.y;
+      var dz = (tip.z || 0) - (origin.z || 0);
+      var len = (10 + power * 32) * (cam.scale < 1.8 ? 2.8 : 1);
+      for (i = 0; i < 28; i++) {
+        var u = i / 27;
+        var p = project({
+          x: origin.x + dx * len * u,
+          y: origin.y + dy * len * u,
+          z: (origin.z || 0) + dz * len * u
+        }, cam);
+        var s = (1.8 + (1 - u) * (cam.scale < 1.8 ? 8 : 6.5)) * (0.55 + power * 0.6);
+        ctx.globalAlpha = Math.pow(1 - u, 0.55) * (0.72 + 0.28 * power);
+        ctx.fillRect(p.x - s * 0.5, p.y - s * 0.35, s, s * 0.7);
+      }
+    }
+  }
+
+  function drawPlume(ctx, cam, pose, localY, power, t, seed) {
+    if (power < 0.03) return;
     var origin = xform({ x: 0, y: localY, z: 0 }, pose);
-    var dir = xform({ x: 0, y: localY - 1, z: 0 }, pose);
-    var dx = dir.x - origin.x;
-    var dy = dir.y - origin.y;
+    var tip = xform({ x: 0, y: localY - 1, z: 0 }, pose);
+    var dx = tip.x - origin.x;
+    var dy = tip.y - origin.y;
+    var dz = (tip.z || 0) - (origin.z || 0);
+    var px = -dy;
+    var py = dx;
+    var plen = Math.hypot(px, py) || 1;
+    px /= plen;
+    py /= plen;
+    var n = 78;
     var i;
     ctx.fillStyle = INK;
-    var n = Math.floor(150 * power);
     for (i = 0; i < n; i++) {
-      var k = Math.random();
-      var spread = k * k * 5.5;
-      var side = (Math.random() - 0.5) * spread;
+      var phase = fract(hash(seed + i * 3) + t * (0.65 + hash(seed + i) * 0.85));
+      var len = phase * (7 + power * 18);
+      var wob = (hash(seed + i + 11) - 0.5) * 2 * (0.25 + phase * phase * 2.7);
+      var wob2 = (hash(seed + i + 29) - 0.5) * 2 * (0.25 + phase * phase * 2.7);
       var p = project({
-        x: origin.x + dx * (0.4 + k * 8) + side,
-        y: origin.y + dy * (0.4 + k * 8),
-        z: (Math.random() - 0.5) * spread
+        x: origin.x + dx * len + px * wob,
+        y: origin.y + dy * len + py * wob,
+        z: (origin.z || 0) + dz * len + wob2
       }, cam);
-      ctx.globalAlpha = (1 - k) * 0.55 * power;
-      ctx.fillRect(p.x, p.y, k > 0.65 ? 2.2 : 1.2, k > 0.65 ? 2.2 : 1.2);
+      ctx.globalAlpha = (1 - phase) * (0.14 + 0.5 * power);
+      var s = phase > 0.62 ? 2.15 : 1.15;
+      ctx.fillRect(p.x, p.y, s, s);
     }
-    if (model) model._exhaust = n;
   }
 
-  function drawPlasma(ctx, body, pose, cam, amount) {
+  function drawVents(ctx, cam, booster, power, t) {
     var i;
     ctx.fillStyle = INK;
-    for (i = 0; i < 50 * amount; i++) {
-      var y = 8 + Math.random() * (SHIP - 12);
-      var th = Math.PI + (Math.random() - 0.5) * 1.4;
-      var rad = shipRadius(y) + Math.random() * 0.8;
+    for (i = 0; i < 40; i++) {
+      var ang = (i / 40) * Math.PI * 2;
+      if (Math.sin(ang) < -0.25) continue;
+      var phase = fract(hash(i + 50) + t * 1.5);
+      var dist = 0.8 + phase * (3.5 + power * 5);
       var p = project(xform({
+        x: Math.cos(ang) * (R * 1.05 + dist),
+        y: BOOST - HOT * 0.45 + (hash(i + 51) - 0.5) * 0.8,
+        z: Math.sin(ang) * (R * 1.05 + dist)
+      }, booster), cam);
+      ctx.globalAlpha = (1 - phase) * 0.45 * power;
+      ctx.fillRect(p.x, p.y, 1.5, 1.5);
+    }
+  }
+
+  function drawShock(ctx, cam, pose, amount) {
+    var i;
+    ctx.fillStyle = INK;
+    for (i = 0; i < 32; i++) {
+      var a = (i / 32) * Math.PI * 2;
+      var r = R + 1.6 + amount * 2.4;
+      var p = project(xform({
+        x: Math.cos(a) * r,
+        y: SHIP * 0.42,
+        z: Math.sin(a) * r
+      }, pose.ship), cam);
+      ctx.globalAlpha = 0.3 * amount;
+      ctx.fillRect(p.x, p.y, 1.5, 1.5);
+    }
+  }
+
+  function drawPlasma(ctx, pose, cam, amount, t) {
+    if (amount < 0.04) return;
+    var nose = xform({ x: 0, y: SHIP / 2 + 1, z: 0 }, pose);
+    var mid = xform({ x: 0, y: SHIP / 2, z: 0 }, pose);
+    var ax = mid.x - nose.x;
+    var ay = mid.y - nose.y;
+    var al = Math.hypot(ax, ay) || 1;
+    ax /= al;
+    ay /= al;
+    var far = cam.scale < 2.2 ? 2.6 : 1;
+    var i;
+    ctx.fillStyle = INK;
+    for (i = 0; i < 140; i++) {
+      var phase = fract(hash(i + 21) + t * (0.85 + hash(i + 22) * 0.3));
+      var y = 3 + hash(i + 23) * (SHIP - 8);
+      y = clamp(y, 0.4, SHIP - 0.4);
+      var th = Math.PI + (hash(i + 24) - 0.5) * 1.35;
+      var rad = shipRadius(y) + 0.35 + phase * 1.4;
+      var body = xform({
         x: rad * Math.cos(th),
         y: y,
         z: rad * Math.sin(th)
-      }, pose), cam);
-      ctx.globalAlpha = 0.35 * amount * Math.random();
-      ctx.fillRect(p.x - 1, p.y, 3, 1.2);
+      }, pose);
+      var trail = (6 + phase * (14 + amount * 22)) * far;
+      var p = project({
+        x: body.x + ax * trail,
+        y: body.y + ay * trail,
+        z: body.z
+      }, cam);
+      var hot = 1 - phase;
+      ctx.globalAlpha = (0.28 + 0.7 * hot) * amount;
+      var s = (hot > 0.5 ? 5.4 : 3.2) * (far > 1 ? 1.35 : 1);
+      ctx.fillRect(p.x - s * 0.45, p.y - s * 0.28, s + 2, s * 0.55);
     }
   }
 
@@ -1115,20 +1528,21 @@
 
   function earthLayout(model) {
     var cramped = model.cramped;
-    var cx = model.w * (cramped ? 0.5 : 0.36);
-    var cy = model.h * (cramped ? 0.2 : 0.46);
     var radius = cramped
-      ? Math.min(model.w * 0.26, model.h * 0.15)
-      : Math.min(model.h * 0.34, model.w * 0.26);
+      ? Math.min(model.w * 0.22, model.h * 0.125)
+      : Math.min(model.h * 0.3, model.w * 0.22);
+    var cy = cramped ? Math.max(radius + 108, model.h * 0.2) : model.h * 0.46;
+    var cx = model.w * (cramped ? 0.5 : 0.34);
     return { cx: cx, cy: cy, radius: radius };
   }
 
   function drawEarth(ctx, model, pose) {
     if (!model.globe) model.globe = buildGlobe();
     var lay = earthLayout(model);
+    var grow = pose.earthIn == null ? 1 : (0.55 + 0.45 * pose.earthIn);
     var cx = lay.cx;
     var cy = lay.cy;
-    var radius = lay.radius;
+    var radius = lay.radius * grow;
     var sun = { x: 0.82, y: 0.12, z: 0.56 };
     var sl = Math.hypot(sun.x, sun.y, sun.z);
     sun.x /= sl;
@@ -1179,86 +1593,199 @@
       ctx.fillRect(cx + lx * radius * 1.035, cy - ly * radius * 1.035, 1.6, 1.6);
     }
     var a = pose.ang || 0.4;
-    var orbit = radius + (model.cramped ? 18 : 28);
+    var alt = (model.cramped ? 48 : 78) * grow;
+    var orbit = radius + alt;
     var k;
     ctx.lineWidth = 1;
     for (k = 18; k >= 1; k--) {
-      var a0 = a - k * 0.045;
-      var a1 = a - (k - 1) * 0.045;
-      ctx.globalAlpha = 0.05 + (1 - k / 18) * 0.45;
+      var a0 = a - k * 0.05;
+      var a1 = a - (k - 1) * 0.05;
+      ctx.globalAlpha = 0.05 + (1 - k / 18) * 0.5;
       ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a0) * orbit, cy + Math.sin(a0) * orbit * 0.55);
-      ctx.lineTo(cx + Math.cos(a1) * orbit, cy + Math.sin(a1) * orbit * 0.55);
+      ctx.moveTo(cx + Math.cos(a0) * orbit, cy + Math.sin(a0) * orbit);
+      ctx.lineTo(cx + Math.cos(a1) * orbit, cy + Math.sin(a1) * orbit);
       ctx.stroke();
     }
     var sx = cx + Math.cos(a) * orbit;
-    var sy = cy + Math.sin(a) * orbit * 0.55;
-    var vx = -Math.sin(a);
-    var vy = Math.cos(a) * 0.55;
-    var len = Math.hypot(vx, vy) || 1;
-    var rot = Math.atan2(vx / len, -vy / len) * 180 / Math.PI;
-    var ppm = model.cramped ? 1.15 : 1.7;
+    var sy = cy + Math.sin(a) * orbit;
+    var svx = -Math.sin(a);
+    var svy = Math.cos(a);
+    var retroRot = Math.atan2(svx, svy) * 180 / Math.PI;
+    var rot = retroRot + 180 + 180 * (pose.retro || 0);
+    var ppm = (model.cramped ? 0.62 : 0.72) * Math.max(grow, 0.7);
     var shipCam = {
       scale: ppm,
       ox: sx,
       oy: sy,
       lookX: 0,
-      lookY: SHIP / 2
+      lookY: SHIP / 2,
+      yaw: 0
     };
     var shipPose = {
       x: 0, y: SHIP / 2, rot: rot, pivotX: 0, pivotY: SHIP / 2,
-      thrust: pose.deorbit || 0, plasma: 0
+      thrust: pose.deorbit || 0, plasma: pose.entry || 0, door: pose.door || 0
     };
     drawBody(ctx, model.ship, shipPose, shipCam, 1);
-    if (pose.deorbit > 0) drawExhaust(ctx, shipCam, shipPose, 1.1, pose.deorbit, model);
+    drawPayloadDoor(ctx, shipCam, shipPose, pose.door || 0);
+    if (pose.deorbit > 0) {
+      drawPlume(ctx, shipCam, shipPose, -0.2, pose.deorbit, pose.t || 0, 120);
+      drawCore(ctx, shipCam, shipPose, -0.15, 2.05, pose.deorbit, 3);
+    }
+    if (shipPose.plasma > 0.04) drawPlasma(ctx, shipPose, shipCam, shipPose.plasma, pose.t || 0);
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = INK;
+    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = 1;
+    var leftSide = sx < cx;
+    var lx0 = leftSide ? sx - 12 : sx + 12;
+    var lx1 = leftSide ? sx - 42 : sx + 42;
+    var ly0 = sy - 8;
+    var ly1 = sy - 26;
+    ctx.beginPath();
+    ctx.moveTo(lx0, ly0);
+    ctx.lineTo(lx1, ly1);
+    ctx.stroke();
+    ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillText("ship", leftSide ? lx1 - 36 : lx1 + 6, ly1 - 4);
+    var doorP = project(xform({ x: R + 0.45, y: 33.6, z: 0 }, shipPose), shipCam);
     model._shipScreen = { x: sx, y: sy };
-    model._cards = cardsFor(pose, model, sx, sy, cx, cy, radius);
+    model._cards = cardsFor(pose, model, doorP, lay);
+    drawSats(ctx, model._cards);
     ctx.restore();
   }
 
-  function cardsFor(pose, model, sx, sy, cx, cy, radius) {
-    if (!pose || pose.scene !== "earth" || pose.t < 23.2) return [];
-    var cramped = model.cramped;
-    var cardW = cramped ? Math.min(168, model.w - 20) : 210;
-    var cardH = cramped ? 58 : 70;
-    var gap = cardH + 10;
-    var maxShow = cramped ? 3 : 4;
-    var slotX = cramped ? 8 : Math.min(model.w - cardW - 18, cx + radius + 36);
-    var slotY0 = cramped ? cy + radius + 18 : 78;
-    var navClear = model.h - (cramped ? 150 : 120);
-    var out = [];
-    var shown = 0;
+  function drawPayloadDoor(ctx, cam, shipPose, open) {
+    var y0 = 30.2;
+    var y1 = 37.4;
+    var slide = (open || 0) * 6.4;
+    function corner(y, side) {
+      return { x: R + 0.22, y: y, z: side * 1.2 };
+    }
+    var slot = [corner(y1, -1), corner(y1, 1), corner(y0, 1), corner(y0, -1)];
+    var panel = [corner(y1 - slide, -1), corner(y1 - slide, 1), corner(y0 - slide, 1), corner(y0 - slide, -1)];
+    var lines = [];
     var i;
-    var released = 0;
-    for (i = 0; i < FACTS.length; i++) if (pose.t >= 23.2 + i * 1.05) released++;
-    var first = Math.max(0, released - maxShow);
-    for (i = first; i < released; i++) {
-      var born = 23.2 + i * 1.05;
-      var u = smooth(Math.max(0, Math.min(1, (pose.t - born) / 0.85)));
-      var ox = sx - cx;
-      var oy = sy - cy;
-      var olen = Math.hypot(ox, oy) || 1;
-      var ux = ox / olen;
-      var uy = oy / olen;
-      var tx = slotX;
-      var ty = Math.min(slotY0 + shown * gap, navClear - cardH);
-      var px;
-      var py;
-      if (u < 1 && !cramped) {
-        var reach = radius + 22 + u * 8;
-        px = cx + ux * reach + (ux >= 0 ? 8 : -cardW - 8);
-        py = cy + uy * reach - cardH * 0.35;
+    for (i = 0; i < 4; i++) {
+      line(lines, slot[i], slot[(i + 1) % 4], open > 0.05 ? 0.85 : 0.35, 1.1);
+      line(lines, panel[i], panel[(i + 1) % 4], 0.95, 1.2);
+    }
+    line(lines, panel[0], panel[2], 0.35, 0.7);
+    strokeAll(ctx, lines, shipPose, cam, 1);
+  }
+
+  function cardSlots(model, lay) {
+    var n = FACTS.length;
+    var cramped = model.cramped;
+    var cols = cramped ? 2 : 1;
+    var rows = Math.ceil(n / cols);
+    var gap = 6;
+    var top = cramped ? lay.cy + lay.radius + 16 : 66;
+    var bot = model.h - (cramped ? 150 : 126);
+    var avail = Math.max(rows * 40, bot - top);
+    var cardH = Math.floor((avail - gap * (rows - 1)) / rows);
+    cardH = Math.max(48, Math.min(cramped ? 86 : 80, cardH));
+    var cardW;
+    var x0;
+    if (cramped) {
+      cardW = Math.floor((model.w - 18 - gap) / 2);
+      x0 = 8;
+    } else {
+      x0 = Math.min(model.w - 236, lay.cx + lay.radius + 36);
+      cardW = Math.min(224, model.w - x0 - 12);
+    }
+    var slots = [];
+    var i;
+    for (i = 0; i < n; i++) {
+      var col = cramped ? i % cols : 0;
+      var row = cramped ? Math.floor(i / cols) : i;
+      slots.push({
+        x: x0 + col * (cardW + gap),
+        y: top + row * (cardH + gap),
+        w: cardW,
+        h: cardH
+      });
+    }
+    return slots;
+  }
+
+  function cardsFor(pose, model, doorP, lay) {
+    if (!pose || pose.t < 34.8) return [];
+    var slots = cardSlots(model, lay);
+    var out = [];
+    var i;
+    for (i = 0; i < FACTS.length; i++) {
+      var born = 34.9 + i * 0.68;
+      if (pose.t < born) break;
+      var u = clamp((pose.t - born) / 1.5, 0, 1);
+      var travel = smooth(Math.min(1, u / 0.46));
+      var grow = smooth(clamp((u - 0.4) / 0.6, 0, 1));
+      var slot = slots[i];
+      var laneX = model.cramped
+        ? (slot.x < model.w * 0.5 ? 4 : model.w - 14)
+        : slot.x - 64;
+      var p0 = doorP;
+      var p1 = { x: laneX, y: doorP.y };
+      var p2 = { x: laneX, y: slot.y + slot.h * 0.35 };
+      var pos;
+      if (travel < 0.5) {
+        var a = travel / 0.5;
+        pos = { x: mix(p0.x, p1.x, a), y: mix(p0.y, p1.y, a) };
       } else {
-        px = tx;
-        py = ty;
-        shown++;
+        var b = (travel - 0.5) / 0.5;
+        pos = { x: mix(p1.x, p2.x, b), y: mix(p1.y, p2.y, b) };
       }
-      px = Math.max(8, Math.min(model.w - cardW - 8, px));
-      py = Math.max(56, Math.min(navClear - cardH, py));
-      out.push({ text: FACTS[i], x: px, y: py, w: cardW });
+      var w = mix(16, slot.w, grow);
+      var h = mix(8, slot.h, grow);
+      var x = mix(pos.x, slot.x, grow);
+      var y = mix(pos.y, slot.y, grow);
+      if (grow < 0.92) {
+        var j;
+        for (j = 0; j < i; j++) {
+          var s = slots[j];
+          var hit = x < s.x + s.w && x + w > s.x + 4 && y < s.y + s.h && y + h > s.y + 2;
+          if (hit) {
+            x = Math.min(x, s.x - w - 10);
+          }
+        }
+      }
+      var spin = (1 - grow) * (i % 2 ? 0.5 : -0.5) * (0.5 + (i % 3) * 0.18);
+      out.push({
+        text: FACTS[i],
+        x: x, y: y, w: w, h: h, spin: spin, grow: grow,
+        opacity: smooth(clamp((u - 0.72) / 0.28, 0, 1)) * (pose.earthAlpha == null ? 1 : pose.earthAlpha),
+        hw: 1 - smooth(clamp((u - 0.8) / 0.2, 0, 1))
+      });
     }
     return out;
   }
+
+  function drawSats(ctx, cards) {
+    if (!cards || !cards.length) return;
+    var i;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1;
+    for (i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      if (c.hw < 0.03) continue;
+      ctx.save();
+      ctx.translate(c.x + c.w / 2, c.y + c.h / 2);
+      ctx.rotate(c.spin);
+      ctx.globalAlpha = Math.min(0.95, c.hw);
+      ctx.strokeRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      if (c.grow < 0.65) {
+        ctx.beginPath();
+        ctx.moveTo(-c.w / 2 + 2, 0);
+        ctx.lineTo(c.w / 2 - 2, 0);
+        ctx.moveTo(0, -c.h / 2);
+        ctx.lineTo(0, c.h / 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
 
   function drawShadow(ctx, cam) {
     var i;
@@ -1296,8 +1823,8 @@
     var top = BELL + BOOST + SHIP;
     var finY = BELL + BOOST - 6;
     return {
-      ship: box([[-8, top, 0], [12, top - 24, 1], [-6, top - 30, 0], [8, BELL + BOOST + SHIP - NOSE, 0]], 28),
-      fins: box([[-6, finY + 8, 0], [12, finY - 6, 1], [0, BELL + BOOST - 2, 0], [-4, BELL + BOOST + 4, 0]], 26),
+      ship: box([[-16, top + 2, 2], [16, top - 18, 2], [-14, top - 34, 1], [16, BELL + BOOST + 28, 2]], 34),
+      fins: box([[-16, finY + 10, 2], [16, finY - 8, 2], [0, BELL + BOOST - 2, 0], [-8, BELL + BOOST + 8, 1]], 30),
       base: box([[-18, 0, 8], [18, 0, 8], [0, BELL + 8, 0], [-10, DECK, 10], [12, 6, -4]], 18),
       tower: box([[-28, 0, -4], [-14, TOWER + 8, 4], [-21, 80, 6], [-10, 40, 0]], 12)
     };
@@ -1308,8 +1835,13 @@
     paint: paint,
     start: start,
     stop: stop,
+    hold: hold,
+    resume: resume,
+    seek: seek,
+    poseAt: poseAt,
     active: active,
     frames: frames,
-    FACTS: FACTS
+    FACTS: FACTS,
+    DURATION: T_END
   };
 })(window);
