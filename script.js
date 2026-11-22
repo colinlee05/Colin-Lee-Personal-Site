@@ -998,26 +998,31 @@
     resources: "resources", social: "social", contact: "contact", index: "index",
   };
 
+  const TERM_LINKS = {
+    vexel: "https://vexel.wtf",
+    x: "https://twitter.com/colinlee05",
+    ig: "https://instagram.com/colinlee.05",
+  };
+
   function say(text) {
     if (text == null || text === "") return;
     const block = document.createElement("div");
-    String(text).split("\n").forEach(function (line, i) {
-      if (i) block.appendChild(document.createElement("br"));
-      const url = line.match(/https?:\/\/\S+/);
-      if (url) {
-        const parts = line.split(url[0]);
-        block.appendChild(document.createTextNode(parts[0]));
-        const a = document.createElement("a");
-        a.href = url[0];
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        a.textContent = url[0];
-        block.appendChild(a);
-        block.appendChild(document.createTextNode(parts[1] || ""));
-      } else {
-        block.appendChild(document.createTextNode(line));
-      }
-    });
+    block.textContent = String(text);
+    termLog.appendChild(block);
+    termLog.scrollTop = termLog.scrollHeight;
+  }
+
+  function sayLink(prefix, key) {
+    const href = TERM_LINKS[key];
+    if (!href) return;
+    const block = document.createElement("div");
+    if (prefix) block.appendChild(document.createTextNode(prefix));
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = href;
+    block.appendChild(a);
     termLog.appendChild(block);
     termLog.scrollTop = termLog.scrollHeight;
   }
@@ -1062,10 +1067,14 @@
       return reduce ? "motion reduced — the stack stays on the pad." : "ignition.";
     },
     vexel: function () {
-      return "Full-stack web app, live in beta.\nhttps://vexel.wtf";
+      say("Full-stack web app, live in beta.");
+      sayLink("", "vexel");
+      return "";
     },
     social: function () {
-      return "X  https://twitter.com/colinlee05\nInstagram  https://instagram.com/colinlee.05";
+      sayLink("X  ", "x");
+      sayLink("Instagram  ", "ig");
+      return "";
     },
     geaux: function () {
       return "I once debugged code all night during an LSU game week!";
