@@ -51,7 +51,7 @@
         </header>
 
         <nav class="callouts" aria-label="Sections">
-            <button type="button" data-open="about" data-side="left" data-anchor="nose">me</button>
+            <button type="button" data-open="about" data-side="right" data-anchor="nose">me</button>
             <button type="button" data-open="education" data-side="left" data-anchor="tower">education</button>
             <button type="button" data-open="experience" data-side="left" data-anchor="booster">experience</button>
             <a data-side="left" data-anchor="pad" data-resume href="resume.pdf" target="_blank" rel="noopener noreferrer">resume</a>
@@ -62,7 +62,10 @@
             <button type="button" data-open="contact" data-side="right" data-anchor="terminal">contact</button>
         </nav>
 
-        <button type="button" class="hot" id="ship-hot" aria-label="Play a short launch sequence"></button>
+        <button type="button" class="hot" id="ship-hot" aria-label="Play the mission sequence"></button>
+        <button type="button" class="ghost" id="skip-mission" hidden>skip mission</button>
+        <p id="mission-caption" class="caption" hidden></p>
+        <div id="payloads"></div>
         <button type="button" class="hot" id="term-hot" aria-label="Open the flight computer"></button>
 
         <div class="whisper">
@@ -443,6 +446,28 @@
     </main>
 
     <p class="sr-only" id="live" aria-live="polite"></p>
+    <div id="mission-summary" class="summary" hidden role="dialog" aria-labelledby="summary-title">
+        <h2 id="summary-title">Mission notes</h2>
+        <p>Motion is reduced, so the flight is described instead of played.</p>
+        <ol>
+            <li>The ship quick-disconnect swings clear. Engines light with the deluge, and the stack lifts.</li>
+            <li>Hot staging: the ship separates. The booster flips, boosts back, and is caught by the chopsticks.</li>
+            <li>The ship coasts around a stippled Earth and releases these notes, taken from this site.</li>
+            <li>Deorbit, reentry on the heat shield, belly-flop, flip, landing burn, and a catch on a second tower. Then the view returns to the pad.</li>
+        </ol>
+        <ul class="fact-list">
+            <li>LSU senior. Information Systems and Analytics, cyber risk focus, computer science minor. Geaux Tigers.</li>
+            <li>Expected graduation Spring 2027. GPA 3.8.</li>
+            <li>I once debugged code all night during an LSU game week.</li>
+            <li>Vexel is a full-stack web app, live in beta.</li>
+            <li>Summer 2024: administrative assistant, MAC-RE LLC, Metairie.</li>
+            <li>Studying CISA material in ISDS 4096 and CISSP material in ISDS 4070. Not certifications held.</li>
+            <li>In progress: SAFe Scrum Master (Scaled Agile), CompTIA Network+, AWS Certified Cloud Practitioner.</li>
+            <li>Other sites and projects: github.com/colinlee05. LinkedIn: colinlee05.</li>
+        </ul>
+        <button type="button" class="ghost" id="summary-close">close</button>
+    </div>
+    <script src="vehicle.js" defer></script>
     <script src="script.js" defer></script>
 </body>
 </html>

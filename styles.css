@@ -847,13 +847,91 @@ html.cramped .callouts {
 }
 
 html.cramped .callouts button,
-html.cramped .callouts a {
+html.cramped .callouts a,
+html.mission .callouts button,
+html.mission .callouts a {
     position: static;
     top: auto !important;
     left: auto !important;
     right: auto !important;
     flex: 0 0 auto;
 }
+
+html.mission .callouts {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    height: auto;
+    max-height: 118px;
+    z-index: 7;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: center;
+    gap: 0 12px;
+    padding: 6px 10px 8px;
+    overflow: hidden;
+    background: linear-gradient(transparent, rgba(12, 11, 14, 0.9) 30%);
+}
+
+html.mission .whisper,
+html.mission .legal { opacity: 0; pointer-events: none; }
+
+#skip-mission {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 8;
+}
+
+.caption {
+    position: absolute;
+    left: 16px;
+    bottom: 128px;
+    z-index: 7;
+    margin: 0;
+    max-width: 46%;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+}
+
+.payload {
+    position: absolute;
+    z-index: 7;
+    width: min(220px, 46vw);
+    padding: 8px 10px;
+    border: 1px solid rgba(243, 239, 230, 0.38);
+    background: rgba(10, 9, 12, 0.78);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.4;
+    pointer-events: none;
+}
+
+.summary {
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(520px, calc(100% - 28px));
+    max-height: min(80vh, 640px);
+    overflow: auto;
+    padding: 18px 18px 16px;
+    background: #121016;
+    border: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.summary h2 { margin: 0 0 8px; font-size: 1.3rem; }
+.summary ol, .fact-list { margin: 0 0 12px; padding-left: 1.1rem; }
+.fact-list li, .summary li { margin: 0 0 6px; }
 
 html.cramped .legal { display: none; }
 
