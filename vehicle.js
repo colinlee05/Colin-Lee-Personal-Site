@@ -981,10 +981,10 @@
     if (t < 22.8) return "Landing burn. Thirteen engines.";
     if (t < 24.6) return "Three center engines. Sliding into the arms.";
     if (t < 26.4) return "Chopsticks close and take the booster.";
-    if (t < 34.0) return "Pulling back from the tower.";
-    if (t < 35.2) return "Ship on orbit.";
-    if (t < 36.2) return "Payload door opening.";
-    if (t < 38.4) return "Satellites deploying.";
+    if (t < 32.2) return "Pulling back. Ship climbing to orbit.";
+    if (t < 33.2) return "Ship on orbit.";
+    if (t < 34.2) return "Payload door opening.";
+    if (t < 37.6) return "Satellites deploying.";
     if (t < 42.15) return "Starlink links to an aircraft at 35,000 ft.";
     if (t < 42.7) return "Deorbit burn. Engines face the direction of flight.";
     if (t < 49.2) return "Reentry. Plasma on the heat shield.";
@@ -1047,12 +1047,12 @@
     bTh = bTh * (1 - meco) + 0.1 * meco;
     pose.booster.bells = 3;
     if (t >= T_SPLIT) {
-      var residual = 0.1 * (1 - ramp(t, T_SPLIT, T_SPLIT + 0.55));
-      var flipLit = ramp(t, 12.3, 12.65) * (1 - ramp(t, 14.45, 14.75));
-      var bb = ramp(t, 14.7, 15.15) * (1 - ramp(t, 16.85, 17.25));
+      var residual = 0.1 * (1 - ramp(t, T_SPLIT, T_SPLIT + 0.4));
+      var flipOn = ramp(t, 12.22, 12.4);
+      var bb = ramp(t, 14.45, 14.9) * (1 - ramp(t, 16.85, 17.25));
       var land13 = ramp(t, 20.7, 21.15) * (1 - ramp(t, 22.55, 22.95));
       var land3 = ramp(t, 22.5, 22.9) * (1 - ramp(t, 24.25, 24.7));
-      bTh = Math.min(1, residual + flipLit * 0.45 + bb * 0.92 + land13 + land3 * 0.58);
+      bTh = Math.min(1, residual * (1 - flipOn) + flipOn * 0.82 * (1 - bb) + bb * 0.95 + land13 + land3 * 0.58);
       pose.booster.bells = land13 > 0.25 && land13 >= land3 ? 10 : 3;
     }
     pose.booster.thrust = bTh;
@@ -1079,7 +1079,7 @@
       lookX: ax * follow,
       lookY: ay * follow
     };
-    var handoff = smooth(span(t, 12.55, 15.2));
+    var handoff = smooth(span(t, 12.25, 13.15));
     var chaseScale = model.cam0.scale * mix(0.58, 0.78, smooth(span(t, 16.4, 21.2)));
     var chase = {
       scale: chaseScale,
@@ -1089,14 +1089,16 @@
       lookY: pose.booster.y
     };
     pose.cam = blendCam(ascentCam, chase, handoff);
-    var pull = smooth(span(t, 27.6, 31.4));
-    pose.cam = {
-      scale: mix(pose.cam.scale, model.cam0.scale * 0.045, pull),
-      ox: mix(pose.cam.ox, model.w * (model.cramped ? 0.52 : 0.56), pull),
-      oy: mix(pose.cam.oy, model.h * 1.18, pull),
-      lookX: pose.cam.lookX,
-      lookY: pose.cam.lookY
-    };
+    var pull = smooth(span(t, 26.6, 29.6));
+    var sep = Math.abs(pose.ship.y - pose.booster.y) + Math.abs(pose.ship.x - pose.booster.x) + 70;
+    var fit = Math.min(model.cam0.scale * 0.46, (model.h * 0.52) / sep);
+    pose.cam = blendCam(pose.cam, {
+      scale: fit,
+      ox: model.w * 0.5,
+      oy: model.h * 0.5,
+      lookX: (pose.booster.x + pose.ship.x) * 0.5,
+      lookY: (pose.booster.y + pose.ship.y) * 0.5
+    }, pull);
 
     var lx = catmull([
       { t: 42.2, v: 64 }, { t: 42.35, v: 64 },
@@ -1129,22 +1131,23 @@
       lookY: mix(ly * 0.42 + 80, 104, tighten)
     };
     pose.shipIn = 1;
-    pose.depart = 1 - ramp(t, 18.2, 19.6);
-    pose.padFade = 1 - ramp(t, 30.4, 31.35);
+    pose.depart = 1 - ramp(t, 28.35, 29.0);
+    pose.padFade = 1 - ramp(t, 28.65, 29.3);
+    pose.satPush = 0;
 
-    pose.worldAlpha = (1 - ramp(t, 33.0, 34.2)) * (t >= 57.2 ? 0 : 1);
-    pose.landShow = ramp(t, 42.15, 43.15) * (1 - ramp(t, 57.2, 58.6));
-    pose.heroIn = ramp(t, 59.0, 60.6);
+    pose.worldAlpha = t >= 57.2 ? 0 : (1 - ramp(t, 28.65, 29.3));
+    pose.landShow = ramp(t, 42.15, 43.15) * (1 - ramp(t, 57.9, 58.15));
+    pose.heroIn = ramp(t, 58.2, 58.85);
     pose.veil = 0;
-    pose.earthAlpha = ramp(t, 34.0, 35.4) * (1 - ramp(t, 42.15, 43.25));
-    pose.earthIn = ramp(t, 34.0, 35.6);
+    pose.earthAlpha = ramp(t, 28.2, 29.8) * (1 - ramp(t, 42.15, 43.25));
+    pose.earthIn = ramp(t, 28.2, 30.0);
     pose.landIn = pose.landShow;
     pose.useHero = pose.heroIn > 0.004;
-    pose.door = ramp(t, 34.6, 36.0) * (1 - ramp(t, 40.2, 41.1));
+    pose.door = ramp(t, 32.45, 33.2) * (1 - ramp(t, 40.3, 41.15));
     pose.deorbit = ramp(t, 40.7, 41.25) * (1 - ramp(t, 42.15, 42.7));
     pose.retro = ramp(t, 39.85, 40.5) * (1 - ramp(t, 42.75, 43.6));
     pose.entry = ramp(t, 43.15, 43.9) * (1 - ramp(t, 49.0, 50.2));
-    pose.ang = 2.15 + Math.max(0, t - 34.2) * 0.07;
+    pose.ang = 0.98 + Math.max(0, t - 31.0) * 0.01;
     if (pose.landShow > pose.earthAlpha && pose.landShow > 0.5 && pose.heroIn < 0.5) pose.scene = "landing";
     else if (pose.earthAlpha > pose.worldAlpha && t < 44) pose.scene = "earth";
     else pose.scene = "pad";
@@ -1210,7 +1213,7 @@
     model.last = pose;
     model._cards = [];
     ctx.save();
-    if (pose.landShow > 0.004 && pose.heroIn < 0.004) {
+    if (pose.landShow > 0.004) {
       drawLanding(fadeCtx(ctx, pose.landShow), model, pose);
     }
     if (pose.worldAlpha > 0.004 && !pose.useHero && pose.padFade > 0.004) {
@@ -1233,7 +1236,7 @@
     var t = pose.t || 0;
     strokeAll(ctx, model.pad, null, cam, 1);
     strokeAll(ctx, model.tower, null, cam, 1);
-    if (!model.cramped && model.farTower && (pose.padFade == null || pose.padFade > 0.85)) {
+    if (!model.cramped && model.farTower && cam.scale > model.cam0.scale * 0.55 && (pose.padFade == null || pose.padFade > 0.85)) {
       var farTop = project({ x: 128, y: TOWER * 0.46, z: -18 }, cam);
       var farBot = project({ x: 128, y: 0, z: -18 }, cam);
       var vw = ctx.canvas.clientWidth || model.w;
@@ -1274,6 +1277,19 @@
     var ship = pose.landShip || pose.ship;
     var t = pose.t || 0;
     var shipA = pose.shipIn == null ? 1 : pose.shipIn;
+    if (t > 46.5) {
+      var far = {
+        scale: cam.scale * 0.32,
+        ox: model.w * 0.14,
+        oy: cam.oy + model.h * 0.06,
+        lookX: model.towerX,
+        lookY: 74,
+        yaw: cam.yaw || YAW
+      };
+      strokeAll(ctx, model.tower, null, far, 0.32);
+      drawBody(ctx, model.booster, bodyPose(CATCH_X, CATCH_Y, 0, BOOST / 2), far, 0.28);
+      drawChopsticks(ctx, far, model.towerX, CATCH_Y + (BOOST / 2 - 6.4), 0.1, 0.28);
+    }
     strokeAll(ctx, model.pad, null, cam, 0.85);
     strokeAll(ctx, model.tower2, null, cam, 1);
     drawBody(ctx, model.ship, ship, cam, shipA);
@@ -1758,6 +1774,16 @@
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.lineWidth = 7;
+    ctx.globalAlpha = 0.07;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha = 0.16;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 2.5, 0, Math.PI * 2);
+    ctx.stroke();
     for (i = 0; i < 80; i++) {
       var ang = (i / 80) * Math.PI * 2;
       var lx = Math.cos(ang);
@@ -1768,7 +1794,7 @@
       ctx.fillRect(cx + lx * radius * 1.035, cy - ly * radius * 1.035, 1.6, 1.6);
     }
     var a = pose.ang || 0.4;
-    var alt = (model.cramped ? 48 : 78) * grow;
+    var alt = (model.cramped ? 62 : 128) * grow;
     var orbit = radius + alt;
     var k;
     ctx.lineWidth = 1;
@@ -1826,9 +1852,11 @@
     ctx.fillText("ship", leftSide ? lx1 - 36 : lx1 + 6, ly1 - 4);
     var doorP = project(xform({ x: R + 0.45, y: 33.6, z: 0 }, shipPose), shipCam);
     model._shipScreen = { x: sx, y: sy };
-    model._cards = cardsFor(pose, model, doorP, lay);
-    drawSats(ctx, model._cards);
-    drawAirliner(ctx, model, pose, model._cards);
+    model._cards = cardsFor(pose, model, {
+      cx: cx, cy: cy, orbit: orbit, ang: a, radius: radius
+    });
+    drawSats(ctx, model._cards, pose);
+    drawAirliner(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     ctx.restore();
   }
 
@@ -1851,120 +1879,112 @@
     strokeAll(ctx, lines, shipPose, cam, 1);
   }
 
-  function cardSlots(model, lay) {
-    var n = FACTS.length;
-    var cramped = model.cramped;
-    var cols = cramped ? 2 : 1;
-    var rows = Math.ceil(n / cols);
-    var gap = 6;
-    var top = cramped ? lay.cy + lay.radius + 16 : 66;
-    var bot = model.h - (cramped ? 150 : 126);
-    var avail = Math.max(rows * 40, bot - top);
-    var cardH = Math.floor((avail - gap * (rows - 1)) / rows);
-    cardH = Math.max(48, Math.min(cramped ? 86 : 80, cardH));
-    var cardW;
-    var x0;
-    if (cramped) {
-      cardW = Math.floor((model.w - 18 - gap) / 2);
-      x0 = 8;
-    } else {
-      x0 = Math.min(model.w - 236, lay.cx + lay.radius + 36);
-      cardW = Math.min(224, model.w - x0 - 12);
-    }
-    var slots = [];
-    var i;
-    for (i = 0; i < n; i++) {
-      var col = cramped ? i % cols : 0;
-      var row = cramped ? Math.floor(i / cols) : i;
-      slots.push({
-        x: x0 + col * (cardW + gap),
-        y: top + row * (cardH + gap),
-        w: cardW,
-        h: cardH
-      });
-    }
-    return slots;
-  }
-
-  function cardsFor(pose, model, doorP, lay) {
-    if (!pose || pose.t < 35.0 || !doorP) return [];
-    var slots = cardSlots(model, lay);
+  function cardsFor(pose, model, geo) {
+    if (!pose || !geo || pose.t < 32.7) return [];
     var out = [];
-    var i;
     var earthA = pose.earthAlpha == null ? 1 : pose.earthAlpha;
+    var i;
+    var latest = -1;
     for (i = 0; i < FACTS.length; i++) {
-      var born = 35.05 + i * 0.5;
+      var born = 32.85 + i * 0.92;
       var age = pose.t - born;
       if (age < 0) break;
-      var push = smooth(clamp(age / 0.8, 0, 1));
-      var unfold = smooth(clamp((age - 0.72) / 1.15, 0, 1));
-      var emerge = unfold > 0.98 ? smooth(clamp((age - 1.9) / 0.55, 0, 1)) : 0;
-      var dir = -0.7 + i * 0.22;
-      var dist = 18 + push * (54 + i * 16);
-      var sx = doorP.x + Math.cos(dir) * dist;
-      var sy = doorP.y + Math.sin(dir) * dist * 0.72 - push * 8;
-      var slot = slots[i];
-      var spin = (i % 2 ? 0.55 : -0.4) * (1 - unfold * 0.85);
+      var along = smooth(clamp(age / 0.8, 0, 1));
+      var unfold = smooth(clamp((age - 0.62) / 0.85, 0, 1));
+      var cardIn = unfold > 0.98 ? smooth(clamp((age - 1.5) / 0.32, 0, 1)) : 0;
+      if (cardIn > 0.2) latest = i;
+      var ang = mix(geo.ang - 0.012, geo.ang - (i + 1) * 0.21, along);
+      var satX = geo.cx + Math.cos(ang) * geo.orbit;
+      var satY = geo.cy + Math.sin(ang) * geo.orbit;
+      var ox = Math.cos(ang);
+      var oy = Math.sin(ang);
+      var big = i === 0 ? 1 + (1 - Math.min(1, unfold)) * Math.min(1, age / 0.25) * 1.5 : 1;
+      if (big > 1.04) {
+        satX += ox * (big - 1) * 42;
+        satY += oy * (big - 1) * 42;
+      }
       out.push({
         text: FACTS[i],
-        x: mix(sx, slot.x, emerge),
-        y: mix(sy, slot.y, emerge),
-        w: mix(20, slot.w, emerge),
-        h: mix(12, slot.h, emerge),
-        spin: 0,
-        grow: emerge,
-        opacity: emerge * earthA,
-        satX: sx,
-        satY: sy,
+        satX: satX,
+        satY: satY,
+        ox: ox,
+        oy: oy,
         unfold: unfold,
-        satSpin: spin,
-        show: push
+        cardIn: cardIn,
+        show: Math.max(along, 0.35),
+        big: big,
+        earthA: earthA,
+        spin: 0,
+        grow: cardIn,
+        opacity: 0,
+        x: satX,
+        y: satY,
+        w: 8,
+        h: 8
       });
+    }
+    for (i = 0; i < out.length; i++) {
+      var c = out[i];
+      if (i !== latest) continue;
+      var w = 176;
+      var h = 54;
+      var x = c.satX + c.ox * 72 + (c.oy < -0.35 ? 28 : 0);
+      var y = c.satY + (c.oy < -0.35 ? 28 : c.oy * 20) - h * 0.45;
+      if (c.ox < 0) x -= w;
+      x = clamp(x, 10, model.w - w - 10);
+      y = clamp(y, 96, model.h - h - 86);
+      c.x = x;
+      c.y = y;
+      c.w = w;
+      c.h = h;
+      c.opacity = c.cardIn * c.earthA;
+      c.leader = Math.hypot(c.satX - (x + w * 0.5), c.satY - (y + h * 0.5)) < 130;
     }
     return out;
   }
 
-  function drawSats(ctx, cards) {
+  function drawSats(ctx, cards, pose) {
     if (!cards || !cards.length) return;
     var i;
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
-    ctx.lineWidth = 1.15;
+    ctx.lineWidth = 1.2;
     ctx.lineJoin = "round";
     for (i = 0; i < cards.length; i++) {
       var c = cards[i];
+      var sc = c.big || 1;
       ctx.save();
       ctx.translate(c.satX, c.satY);
-      ctx.rotate(c.satSpin);
-      ctx.globalAlpha = 0.92 * c.show;
-      ctx.strokeRect(-11, -4, 22, 8);
-      ctx.beginPath();
-      ctx.moveTo(-8, -1.5);
-      ctx.lineTo(8, -1.5);
-      ctx.moveTo(-8, 1.5);
-      ctx.lineTo(8, 1.5);
-      ctx.stroke();
+      ctx.rotate(-0.2);
+      ctx.scale(sc, sc);
+      ctx.globalAlpha = 0.95 * c.show;
+      ctx.strokeRect(-9, -4.5, 18, 9);
+      ctx.globalAlpha = 0.45 * c.show;
+      ctx.strokeRect(-10, -3, 20, 6);
       var wing;
       var seg;
+      var panel = 10;
+      var gap = 3;
       for (wing = -1; wing <= 1; wing += 2) {
-        var prev = wing * 11;
-        for (seg = 1; seg <= 4; seg++) {
-          var reach = prev + wing * c.unfold * 13;
-          ctx.globalAlpha = 0.85 * c.show;
-          ctx.strokeRect(Math.min(prev, reach), -3.2, Math.abs(reach - prev), 6.4);
-          ctx.beginPath();
-          ctx.moveTo(prev, 0);
-          ctx.lineTo(reach, 0);
-          ctx.stroke();
-          prev = reach;
+        for (seg = 0; seg < 2; seg++) {
+          var out = c.unfold * (seg + 1) * (panel + gap);
+          var x0 = wing > 0 ? 9 + out - panel : -9 - out;
+          ctx.globalAlpha = (0.35 + 0.6 * c.unfold) * c.show;
+          ctx.strokeRect(x0, -6, panel, 12);
+          if (seg > 0 && c.unfold > 0.08) {
+            ctx.beginPath();
+            ctx.moveTo(wing > 0 ? x0 : x0 + panel, 0);
+            ctx.lineTo(wing > 0 ? x0 - gap : x0 + panel + gap, 0);
+            ctx.stroke();
+          }
         }
       }
       ctx.restore();
-      if (c.opacity > 0.04) {
-        var tx = c.x + (c.satX < c.x ? 0 : c.w);
-        var ty = c.y + Math.min(c.h * 0.4, 18);
-        ctx.globalAlpha = 0.7 * c.opacity;
+      if (c.leader && c.opacity > 0.05) {
+        var tx = c.x + (c.satX < c.x + c.w * 0.5 ? 0 : c.w);
+        var ty = c.y + c.h * 0.45;
+        ctx.globalAlpha = 0.75 * Math.min(1, c.opacity * 2);
         ctx.beginPath();
         ctx.moveTo(c.satX, c.satY);
         ctx.lineTo(tx, ty);
@@ -1993,17 +2013,20 @@
     ctx.restore();
   }
 
-  function drawAirliner(ctx, model, pose, cards) {
+  function drawAirliner(ctx, model, pose, cards, geo) {
     var t = pose.t || 0;
-    if (t < 38.5 || t > 42.35 || (pose.earthAlpha || 0) < 0.08) return;
-    var fade = ramp(t, 38.5, 39.05) * (1 - ramp(t, 41.85, 42.3)) * pose.earthAlpha;
-    var u = span(t, 38.6, 42.2);
-    var y = model.h - (model.cramped ? 196 : 124);
-    var x = mix(model.w * 0.18, model.w * 0.4, u);
-    var L = model.cramped ? 108 : 156;
-    var fus = L * 0.105;
+    if (!geo || t < 36.8 || t > 42.3 || (pose.earthAlpha || 0) < 0.08) return;
+    var fade = ramp(t, 36.8, 37.3) * (1 - ramp(t, 41.9, 42.25)) * pose.earthAlpha;
+    var u = span(t, 36.9, 42.1);
+    var limb = mix(1.25, 1.85, u);
+    var x = geo.cx + Math.cos(limb) * (geo.radius + 18);
+    var y = geo.cy + Math.sin(limb) * (geo.radius + 18);
+    var L = model.cramped ? 58 : 78;
+    var fus = L * 0.11;
+    var rot = limb + Math.PI / 2;
     ctx.save();
     ctx.translate(x, y);
+    ctx.rotate(rot);
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
     ctx.lineWidth = 1.2;
@@ -2022,7 +2045,7 @@
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(L * 0.04, fus * 0.2);
-    ctx.lineTo(-L * 0.2, fus * 2.15);
+    ctx.lineTo(-L * 0.2, fus * 1.45);
     ctx.lineTo(-L * 0.02, fus * 1.45);
     ctx.lineTo(L * 0.16, fus * 0.15);
     ctx.closePath();
@@ -2050,20 +2073,25 @@
     ctx.ellipse(L * 0.12, -fus - 2.1, L * 0.07, 2.6, 0, 0, Math.PI * 2);
     ctx.closePath();
     ctx.stroke();
-    var dome = { x: x + L * 0.12, y: y - fus - 2.1 };
+    var dome = {
+      x: x + (L * 0.12) * Math.cos(rot) - (-fus - 2.1) * Math.sin(rot),
+      y: y + (L * 0.12) * Math.sin(rot) + (-fus - 2.1) * Math.cos(rot)
+    };
     ctx.restore();
-    if (!cards || cards.length < 2) return;
+    if (!cards || !cards.length) return;
     var linked = [];
     var i;
-    for (i = 0; i < cards.length; i++) if (cards[i].unfold > 0.85) linked.push(cards[i]);
+    for (i = 0; i < cards.length; i++) if (cards[i].unfold > 0.9) linked.push(cards[i]);
     if (linked.length < 2) return;
     for (i = 0; i < linked.length - 1; i++) {
-      beamPackets(ctx, linked[i].satX, linked[i].satY, linked[i + 1].satX, linked[i + 1].satY, t, i * 0.17, fade);
+      beamPackets(ctx, linked[i].satX, linked[i].satY, linked[i + 1].satX, linked[i + 1].satY, t, i * 0.17, fade * 0.45);
     }
+    var planeAng = Math.atan2(dome.y - geo.cy, dome.x - geo.cx);
     var best = linked[0];
     var bestD = 1e9;
     for (i = 0; i < linked.length; i++) {
-      var d = Math.hypot(linked[i].satX - dome.x, linked[i].satY - dome.y);
+      var sa = Math.atan2(linked[i].satY - geo.cy, linked[i].satX - geo.cx);
+      var d = Math.abs(Math.atan2(Math.sin(sa - planeAng), Math.cos(sa - planeAng)));
       if (d < bestD) { bestD = d; best = linked[i]; }
     }
     beamPackets(ctx, best.satX, best.satY, dome.x, dome.y, t, 0.63, fade);
