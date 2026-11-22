@@ -678,6 +678,12 @@
   }
 
   function rebuild() {
+    var elapsed = null;
+    if (model && model.mission) {
+      elapsed = model.mission.t0 == null
+        ? model.mission.elapsed
+        : (performance.now() - model.mission.t0) / 1000;
+    }
     const rect = canvas.getBoundingClientRect();
     view.w = Math.max(1, rect.width);
     view.h = Math.max(1, rect.height);
@@ -690,6 +696,7 @@
     const cramped = view.w < 860 || view.h < 620;
     html.classList.toggle("cramped", cramped);
     model = Vehicle.create(view.w, view.h, cramped);
+    if (elapsed != null) Vehicle.seek(model, elapsed, performance.now());
     geo = model.ui;
 
     const rng = mulberry32((view.w * 131 + view.h * 17) >>> 0);
@@ -1086,7 +1093,7 @@
     if (cap) { cap.hidden = true; cap.textContent = ""; }
     var box = document.getElementById("payloads");
     if (box) box.replaceChildren();
-    if (model) Vehicle.paint(ctx, model, performance.now());
+    if (ctx && geo) draw(performance.now());
   }
 
   function syncMission(now) {
@@ -1103,16 +1110,24 @@
       live.textContent = pose.beat;
     }
     if (!box || !pose) return;
-    var cards = pose.scene === "earth" && model._cards ? model._cards : [];
-    box.replaceChildren();
-    cards.forEach(function (card) {
+    var cards = model._cards || [];
+    while (box.children.length < cards.length) {
       var el = document.createElement("p");
       el.className = "payload";
-      el.textContent = card.text;
+      box.appendChild(el);
+    }
+    while (box.children.length > cards.length) box.removeChild(box.lastChild);
+    cards.forEach(function (card, i) {
+      var el = box.children[i];
+      if (el.textContent !== card.text) el.textContent = card.text;
       el.style.left = card.x + "px";
       el.style.top = card.y + "px";
-      if (card.w) el.style.width = card.w + "px";
-      box.appendChild(el);
+      el.style.width = card.w + "px";
+      el.style.height = card.h + "px";
+      el.style.opacity = String(card.opacity || 0);
+      el.style.transform = "rotate(" + (card.spin || 0) + "rad)";
+      if ((card.opacity || 0) < 0.08) el.setAttribute("hidden", "");
+      else el.removeAttribute("hidden");
     });
   }
 
@@ -1571,7 +1586,13 @@
   }
 
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && sceneOn() && !reduce) startLoop();
+    var now = performance.now();
+    if (document.hidden) {
+      if (model) Vehicle.hold(model, now);
+      return;
+    }
+    if (model) Vehicle.resume(model, now);
+    if (sceneOn() && !reduce) startLoop();
   });
 
   window.addEventListener("resize", function () {
