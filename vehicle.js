@@ -748,29 +748,28 @@
      +10 s  booster flip         13-17    one continuous rotation, engines
                                           swing to face back toward the pad
      +40 s  boostback            14-18    plume toward the launch site
-     +6 min descent              16-20    still tilted, falling back toward the tower
-     landing burn                20-23    tilt to vertical, ease into a hover
-     hover, then catch           23-26    arms close, plume fades, slight settle
-     pull back to orbit          26-29    camera zooms out, globe grows in
-     payload door + PEZ          29-36    flat satellites leave one at a time
-     deorbit burn                36-38    engines face along the velocity
-     high-altitude entry         39-45    ship starts high above the second tower,
-                                          plasma on the windward side
-     flip, hover, catch          45-50    upright, hover, arms close, settle
-     reset                       50-53    tower and ship fade together, hero returns
+     +6 min descent              16-21    arrives beside the tower still tilted, arms open
+     landing burn                21-24    two seconds tilting upright, plume on
+     hover                       24-25    vertical, beside the open arms, at least a second
+     catch                       25-27    arms close over a second, then a small settle
+     pullback                    28-33    tower shrinks and drops off screen
+     orbit                       34-43    globe fades in only after the tower is gone
+     deorbit                     41-43    engines face along the velocity
+     reentry                     44-51    ship fades in from above, tower already in frame
+     flip, hover, catch          51-57    two-second flip, hover, arms close
+     reset                       58-61    tower and ship fade together
 
-     The pose is a pure function of t. Motion uses smoothstep so speed is
-     zero at each hold: hover, then the arms, then the settle. Particles are
-     a fixed pool indexed by a phase of t. The ship is never deleted when the
-     camera leaves it. The return covers the whole landing picture with one
-     veil so the tower and the caught ship leave together. */
+     The pose is a pure function of t. The tilt, the flip, and the arm close
+     are linear over their own holds, so each one stays readable at playback
+     speed. The globe never shares the frame with the launch tower. The second
+     tower is on screen for the whole descent. */
 
   var T_SPLIT = 12.2;
   var CATCH_X = -1.6;
   var CATCH_Y = 92;
   var CATCH2_X = -3.6;
   var CATCH2_Y = 86;
-  var T_END = 52.6;
+  var T_END = 60.8;
 
   var ANCHOR_Y = [
     { t: 0, v: BELL }, { t: 2.55, v: BELL },
@@ -821,6 +820,12 @@
     if (t <= a) return 0;
     if (t >= b) return 1;
     return smooth((t - a) / (b - a));
+  }
+
+  function span(t, a, b) {
+    if (t <= a) return 0;
+    if (t >= b) return 1;
+    return (t - a) / (b - a);
   }
 
   function hash(i) {
@@ -909,20 +914,20 @@
     if (t < 12.2) return "MECO. Ship engines light through the vented ring.";
     if (t < 13.6) return "Hot staging. The ship pulls away.";
     if (t < 17.6) return "Booster flips and boosts back.";
-    if (t < 20.0) return "Booster descent.";
-    if (t < 22.8) return "Landing burn. Booster tilting upright.";
-    if (t < 24.0) return "Booster hovering beside the tower.";
-    if (t < 25.6) return "Chopsticks close and take the booster.";
-    if (t < 27.4) return "Pulling back from the catch.";
-    if (t < 28.8) return "Ship on orbit.";
-    if (t < 30.4) return "Payload door opening.";
-    if (t < 35.6) return "Satellites deploying.";
-    if (t < 37.6) return "Deorbit burn. Engines face forward.";
-    if (t < 44.6) return "Reentry. Plasma on the heat shield.";
-    if (t < 46.6) return "Flip and landing burn.";
-    if (t < 47.6) return "Ship hovering beside the second tower.";
-    if (t < 49.6) return "Chopsticks close and take the ship.";
-    if (t < 50.8) return "Caught on the second tower.";
+    if (t < 21.3) return "Booster descent.";
+    if (t < 23.6) return "Landing burn. Booster tilting upright.";
+    if (t < 25.1) return "Booster hovering beside the open arms.";
+    if (t < 27.2) return "Chopsticks close and take the booster.";
+    if (t < 33.2) return "Pulling back from the tower.";
+    if (t < 35.2) return "Ship on orbit.";
+    if (t < 36.4) return "Payload door opening.";
+    if (t < 40.8) return "Satellites deploying.";
+    if (t < 42.8) return "Deorbit burn. Engines face forward.";
+    if (t < 50.8) return "Reentry. Plasma on the heat shield.";
+    if (t < 53.0) return "Flip to vertical. Landing burn.";
+    if (t < 54.4) return "Ship hovering beside the open arms.";
+    if (t < 56.4) return "Chopsticks close and take the ship.";
+    if (t < 57.8) return "Caught on the second tower.";
     return "Back on the pad.";
   }
 
@@ -943,20 +948,21 @@
     } else {
       var dist = lin([
         { t: T_SPLIT, v: 0 }, { t: 13.2, v: 14 }, { t: 15.4, v: 48 },
-        { t: 18.5, v: 130 }, { t: 24, v: 240 }, { t: 29, v: 340 }
+        { t: 18.5, v: 130 }, { t: 26, v: 280 }, { t: 34, v: 420 }
       ], t);
       pose.ship = slide(split.ship, dist, mix(0, -6, ramp(t, 14, 20)));
       var b0 = split.booster;
-      var bx = mix(b0.x, 32, ramp(t, 12.2, 16.2));
-      var by = mix(b0.y, b0.y + 18, ramp(t, 12.2, 15.2));
-      var br = mix(b0.rot, -200, ramp(t, 12.2, 16.0));
-      bx = mix(bx, 14, ramp(t, 16.2, 20.0));
-      by = mix(by, 210, ramp(t, 16.2, 20.0));
-      br = mix(br, -318, ramp(t, 16.2, 20.0));
-      bx = mix(bx, CATCH_X, ramp(t, 20.0, 22.8));
-      by = mix(by, CATCH_Y + 4.5, ramp(t, 20.0, 22.8));
-      br = mix(br, -360, ramp(t, 20.0, 22.6));
-      by = mix(by, CATCH_Y, ramp(t, 24.5, 25.6));
+      var bx = mix(b0.x, 32, ramp(t, 12.2, 16.4));
+      var by = mix(b0.y, b0.y + 16, ramp(t, 12.2, 15.4));
+      var br = mix(b0.rot, -200, ramp(t, 12.2, 16.2));
+      bx = mix(bx, 8, ramp(t, 16.4, 21.2));
+      by = mix(by, CATCH_Y + 14, ramp(t, 16.4, 21.2));
+      br = mix(br, -325, ramp(t, 16.4, 21.2));
+      var tilt = span(t, 21.4, 23.6);
+      bx = mix(bx, CATCH_X, tilt);
+      by = mix(by, CATCH_Y + 5, tilt);
+      br = mix(br, -360, tilt);
+      by = mix(by, CATCH_Y, span(t, 26.2, 27.1));
       pose.booster = bodyPose(bx, by, br, BOOST / 2);
     }
 
@@ -968,7 +974,7 @@
     if (t >= T_SPLIT) {
       var residual = 0.1 * (1 - ramp(t, T_SPLIT, T_SPLIT + 0.7));
       var bb = ramp(t, 13.3, 14.0) * (1 - ramp(t, 16.6, 17.4));
-      var landBurn = ramp(t, 19.7, 20.4) * (1 - ramp(t, 24.3, 25.3));
+      var landBurn = ramp(t, 21.2, 21.7) * (1 - ramp(t, 25.4, 26.5));
       bTh = residual + bb * 0.95 + landBurn;
     }
     pose.booster.thrust = bTh;
@@ -980,8 +986,8 @@
 
     var pin0 = BELL + BOOST - 6.4;
     var pinCatch = CATCH_Y + (BOOST / 2 - 6.4);
-    pose.sticksY = mix(pin0, pinCatch, ramp(t, 17.6, 21.2));
-    pose.sticksOpen = mix(0.72 + 0.26 * ramp(t, 0.2, 1.75), 0.14, ramp(t, 23.9, 25.15));
+    pose.sticksY = mix(pin0, pinCatch, ramp(t, 17.6, 20.6));
+    pose.sticksOpen = mix(0.72 + 0.26 * ramp(t, 0.2, 1.75), 0.14, span(t, 25.1, 26.3));
 
     var follow = ramp(t, 2.65, 6.1);
     var scaleMul = 1 - 0.42 * ramp(t, 2.85, 7.4);
@@ -995,50 +1001,56 @@
       lookX: ax * follow,
       lookY: ay * follow
     };
-    var pull = ramp(t, 25.2, 27.8);
+    var pull = ramp(t, 28.2, 32.4);
+    var catchScale = model.cam0.scale * mix(0.56, 0.82, ramp(t, 17.4, 19.6));
     var boostCam = {
-      scale: model.cam0.scale * mix(0.56, 0.8, ramp(t, 17.4, 19.6)) * (1 - 0.58 * pull),
+      scale: mix(catchScale, model.cam0.scale * 0.05, pull),
       ox: model.w * (model.cramped ? 0.52 : 0.56),
-      oy: model.h * (0.52 - 0.08 * pull),
+      oy: mix(model.h * 0.52, model.h * 1.28, pull),
       lookX: pose.booster.x,
-      lookY: pose.booster.y + 36 * pull
+      lookY: pose.booster.y
     };
     pose.cam = blendCam(ascentCam, boostCam, ramp(t, 13.8, 17.2));
 
-    var uHigh = ramp(t, 38.4, 43.4);
-    var uNear = ramp(t, 43.4, 46.6);
-    var uSet = ramp(t, 47.6, 48.6);
-    var ly = mix(mix(mix(560, 280, uHigh), CATCH2_Y + 6, uNear), CATCH2_Y, uSet);
-    var lx = mix(mix(96, 36, uHigh), CATCH2_X, uNear);
-    var lrot = mix(90, 0, ramp(t, 44.8, 46.5));
+    var belly = span(t, 44.0, 50.8);
+    var flip = span(t, 51.0, 53.0);
+    var ly = mix(640, 168, belly);
+    var lx = mix(86, 24, belly);
+    lx = mix(lx, CATCH2_X, flip);
+    ly = mix(ly, CATCH2_Y + 6, flip);
+    ly = mix(ly, CATCH2_Y, span(t, 55.5, 56.4));
+    var lrot = mix(90, 0, flip);
     pose.landShip = bodyPose(lx, ly, lrot, SHIP / 2);
-    pose.landShip.thrust = ramp(t, 44.6, 45.3) * (1 - ramp(t, 47.5, 48.5));
-    pose.landShip.plasma = ramp(t, 38.2, 39.0) * (1 - ramp(t, 43.6, 45.0));
+    pose.landShip.thrust = ramp(t, 50.7, 51.3) * (1 - ramp(t, 54.6, 55.6));
+    pose.landShip.plasma = ramp(t, 44.4, 45.2) * (1 - ramp(t, 49.4, 50.6));
     pose.sticks2Y = CATCH2_Y + (34 - SHIP / 2);
-    pose.sticks2Open = mix(0.98, 0.14, ramp(t, 47.2, 48.4));
-    var near = ramp(t, 39.2, 46.4);
+    pose.sticks2Open = mix(0.98, 0.14, span(t, 54.4, 55.6));
+    var widen = span(t, 44.0, 50.6);
+    var closeIn = span(t, 50.6, 53.2);
+    var unit = model.cam0.scale / 5.05;
     pose.landCam = {
-      scale: model.cam0.scale * mix(model.cramped ? 0.2 : 0.24, model.cramped ? 0.86 : 0.92, near),
-      ox: model.w * (model.cramped ? 0.55 : 0.58),
+      scale: mix(mix(1.55, 2.55, widen), 4.05, closeIn) * unit * (model.cramped ? 0.78 : 1),
+      ox: model.w * (model.cramped ? 0.55 : 0.56),
       oy: model.h * 0.5,
-      lookX: mix(lx * 0.25 - 4, lx, near),
-      lookY: mix(ly * 0.38 + 70, ly, near)
+      lookX: mix(mix(18, 2, widen), CATCH2_X, closeIn),
+      lookY: mix(mix(300, 175, widen), 102, closeIn)
     };
+    pose.shipIn = ramp(t, 44.2, 45.8);
 
-    pose.worldAlpha = 1 - ramp(t, 26.6, 28.4);
-    pose.veil = ramp(t, 49.8, 51.6);
-    if (t >= 49.8) pose.worldAlpha = pose.veil;
-    pose.earthAlpha = ramp(t, 26.7, 28.8) * (1 - ramp(t, 37.2, 39.0));
-    pose.earthIn = ramp(t, 26.6, 28.9);
-    pose.landIn = ramp(t, 38.2, 40.0);
-    pose.useHero = t >= 49.8;
-    pose.door = ramp(t, 28.9, 30.3) * (1 - ramp(t, 36.5, 37.4));
-    pose.deorbit = ramp(t, 35.7, 36.5) * (1 - ramp(t, 37.5, 38.3));
-    pose.retro = ramp(t, 35.4, 36.8);
-    pose.entry = ramp(t, 37.3, 38.5) * (1 - ramp(t, 40.2, 41.0));
-    pose.ang = 2.2 + Math.max(0, t - 26.4) * 0.085;
-    if (pose.landIn > pose.earthAlpha && pose.landIn > 0.5 && t < 49.8) pose.scene = "landing";
-    else if (pose.earthAlpha > pose.worldAlpha && t < 40) pose.scene = "earth";
+    pose.worldAlpha = 1 - ramp(t, 33.0, 34.2);
+    pose.veil = ramp(t, 57.8, 59.8);
+    if (t >= 57.8) pose.worldAlpha = pose.veil;
+    pose.earthAlpha = ramp(t, 34.0, 35.4) * (1 - ramp(t, 42.6, 43.8));
+    pose.earthIn = ramp(t, 34.0, 35.6);
+    pose.landIn = ramp(t, 44.2, 45.8);
+    pose.useHero = t >= 57.8;
+    pose.door = ramp(t, 34.6, 36.0) * (1 - ramp(t, 40.4, 41.3));
+    pose.deorbit = ramp(t, 41.0, 41.7) * (1 - ramp(t, 42.2, 43.0));
+    pose.retro = ramp(t, 40.6, 42.0);
+    pose.entry = ramp(t, 42.2, 43.2) * (1 - ramp(t, 44.6, 45.4));
+    pose.ang = 2.15 + Math.max(0, t - 34.2) * 0.07;
+    if (pose.landIn > pose.earthAlpha && pose.landIn > 0.5 && t < 57.8) pose.scene = "landing";
+    else if (pose.earthAlpha > pose.worldAlpha && t < 44) pose.scene = "earth";
     else pose.scene = "pad";
     return pose;
   }
@@ -1157,15 +1169,16 @@
     var cam = pose.landCam || pose.cam || model.cam0;
     var ship = pose.landShip || pose.ship;
     var t = pose.t || 0;
+    var shipA = pose.shipIn == null ? 1 : pose.shipIn;
     strokeAll(ctx, model.pad, null, cam, 0.85);
     strokeAll(ctx, model.tower2, null, cam, 1);
-    drawBody(ctx, model.ship, ship, cam, 1);
+    drawBody(ctx, model.ship, ship, cam, shipA);
     drawChopsticks(ctx, cam, -16, pose.sticks2Y, pose.sticks2Open, 1);
-    if (ship.thrust > 0.04) {
-      drawPlume(ctx, cam, ship, -0.25, ship.thrust, t, 90);
-      drawCore(ctx, cam, ship, -0.15, 2.05, ship.thrust, 3);
+    if (ship.thrust > 0.04 && shipA > 0.05) {
+      drawPlume(ctx, cam, ship, -0.25, ship.thrust * shipA, t, 90);
+      drawCore(ctx, cam, ship, -0.15, 2.05, ship.thrust * shipA, 3);
     }
-    if (ship.plasma > 0.04) drawPlasma(ctx, ship, cam, ship.plasma, t);
+    if (ship.plasma > 0.04 && shipA > 0.05) drawPlasma(ctx, ship, cam, ship.plasma * shipA, t);
   }
 
   function drawBody(ctx, body, pose, cam, alpha) {
@@ -1687,12 +1700,12 @@
   }
 
   function cardsFor(pose, model, doorP, lay) {
-    if (!pose || pose.t < 29.3) return [];
+    if (!pose || pose.t < 34.8) return [];
     var slots = cardSlots(model, lay);
     var out = [];
     var i;
     for (i = 0; i < FACTS.length; i++) {
-      var born = 29.35 + i * 0.72;
+      var born = 34.9 + i * 0.68;
       if (pose.t < born) break;
       var u = clamp((pose.t - born) / 1.5, 0, 1);
       var travel = smooth(Math.min(1, u / 0.46));
