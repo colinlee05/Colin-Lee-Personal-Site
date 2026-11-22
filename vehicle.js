@@ -769,7 +769,7 @@
   var CATCH_Y = 92;
   var CATCH2_X = -3.6;
   var CATCH2_Y = 86;
-  var T_END = 60.8;
+  var T_END = 61.4;
 
   var ANCHOR_Y = [
     { t: 0, v: BELL }, { t: 2.55, v: BELL },
@@ -892,6 +892,10 @@
       worldAlpha: 1,
       earthAlpha: 0,
       landIn: 0,
+      landShow: 0,
+      heroIn: 0,
+      padFade: 1,
+      depart: 1,
       veil: 0,
       earthIn: 1,
       entry: 0,
@@ -918,7 +922,7 @@
     if (t < 23.6) return "Landing burn. Booster tilting upright.";
     if (t < 25.1) return "Booster hovering beside the open arms.";
     if (t < 27.2) return "Chopsticks close and take the booster.";
-    if (t < 33.2) return "Pulling back from the tower.";
+    if (t < 34.0) return "Pulling back from the tower.";
     if (t < 35.2) return "Ship on orbit.";
     if (t < 36.4) return "Payload door opening.";
     if (t < 40.8) return "Satellites deploying.";
@@ -927,7 +931,7 @@
     if (t < 53.0) return "Flip to vertical. Landing burn.";
     if (t < 54.4) return "Ship hovering beside the open arms.";
     if (t < 56.4) return "Chopsticks close and take the ship.";
-    if (t < 57.8) return "Caught on the second tower.";
+    if (t < 59.0) return "Caught on the second tower.";
     return "Back on the pad.";
   }
 
@@ -1036,20 +1040,23 @@
       lookY: mix(mix(300, 175, widen), 102, closeIn)
     };
     pose.shipIn = ramp(t, 44.2, 45.8);
+    pose.depart = 1 - ramp(t, 18.2, 19.6);
+    pose.padFade = 1 - ramp(t, 30.5, 31.4);
 
-    pose.worldAlpha = 1 - ramp(t, 33.0, 34.2);
-    pose.veil = ramp(t, 57.8, 59.8);
-    if (t >= 57.8) pose.worldAlpha = pose.veil;
+    pose.worldAlpha = (1 - ramp(t, 33.0, 34.2)) * (t >= 57.2 ? 0 : 1);
+    pose.landShow = ramp(t, 44.2, 45.8) * (1 - ramp(t, 57.2, 58.6));
+    pose.heroIn = ramp(t, 59.0, 60.6);
+    pose.veil = 0;
     pose.earthAlpha = ramp(t, 34.0, 35.4) * (1 - ramp(t, 42.6, 43.8));
     pose.earthIn = ramp(t, 34.0, 35.6);
-    pose.landIn = ramp(t, 44.2, 45.8);
-    pose.useHero = t >= 57.8;
+    pose.landIn = pose.landShow;
+    pose.useHero = pose.heroIn > 0.004;
     pose.door = ramp(t, 34.6, 36.0) * (1 - ramp(t, 40.4, 41.3));
     pose.deorbit = ramp(t, 41.0, 41.7) * (1 - ramp(t, 42.2, 43.0));
     pose.retro = ramp(t, 40.6, 42.0);
     pose.entry = ramp(t, 42.2, 43.2) * (1 - ramp(t, 44.6, 45.4));
     pose.ang = 2.15 + Math.max(0, t - 34.2) * 0.07;
-    if (pose.landIn > pose.earthAlpha && pose.landIn > 0.5 && t < 57.8) pose.scene = "landing";
+    if (pose.landShow > pose.earthAlpha && pose.landShow > 0.5 && pose.heroIn < 0.5) pose.scene = "landing";
     else if (pose.earthAlpha > pose.worldAlpha && t < 44) pose.scene = "earth";
     else pose.scene = "pad";
     return pose;
@@ -1114,20 +1121,18 @@
     model.last = pose;
     model._cards = [];
     ctx.save();
-    if (pose.landIn > 0.004 && pose.veil < 0.999) {
-      drawLanding(pose.veil > 0.004 ? ctx : fadeCtx(ctx, pose.landIn), model, pose);
+    if (pose.landShow > 0.004 && pose.heroIn < 0.004) {
+      drawLanding(fadeCtx(ctx, pose.landShow), model, pose);
     }
-    if (pose.worldAlpha > 0.004 && !pose.useHero) drawPad(fadeCtx(ctx, pose.worldAlpha), model, pose);
-    if (pose.veil > 0.004) {
-      ctx.save();
-      ctx.fillStyle = "#141218";
-      ctx.globalAlpha = pose.veil;
-      ctx.fillRect(0, 0, model.w, model.h);
-      ctx.restore();
+    if (pose.worldAlpha > 0.004 && !pose.useHero && pose.padFade > 0.004) {
+      drawPad(fadeCtx(ctx, pose.worldAlpha * pose.padFade), model, pose);
+    }
+    if (pose.heroIn > 0.004) {
       var hero = padPose();
       hero.showComputer = true;
       hero.t = 0;
-      drawPad(fadeCtx(ctx, pose.veil), model, hero);
+      hero.depart = 1;
+      drawPad(fadeCtx(ctx, pose.heroIn), model, hero);
     }
     if (pose.earthAlpha > 0.004) drawEarth(fadeCtx(ctx, pose.earthAlpha), model, pose);
     ctx.restore();
@@ -1139,9 +1144,12 @@
     var t = pose.t || 0;
     strokeAll(ctx, model.pad, null, cam, 1);
     strokeAll(ctx, model.tower, null, cam, 1);
-    if (!model.cramped && model.farTower) strokeAll(ctx, model.farTower, null, cam, 0.18);
+    if (!model.cramped && model.farTower && (pose.padFade == null || pose.padFade > 0.85)) {
+      strokeAll(ctx, model.farTower, null, cam, 0.18);
+    }
     drawBody(ctx, model.booster, pose.booster, cam, 1);
-    drawBody(ctx, model.ship, pose.ship, cam, 1);
+    var shipA = pose.depart == null ? 1 : pose.depart;
+    if (shipA > 0.02) drawBody(ctx, model.ship, pose.ship, cam, shipA);
     drawChopsticks(ctx, cam, model.towerX, pose.sticksY, pose.sticksOpen, 1);
     drawQD(ctx, cam, model.towerX, pose.qd, pose.ship);
     drawClamps(ctx, cam, pose.clamps);
@@ -1206,6 +1214,7 @@
       if (ln.alpha <= 0) continue;
       var a = project(pose ? xform(ln.a, pose) : ln.a, cam);
       var b = project(pose ? xform(ln.b, pose) : ln.b, cam);
+      if (Math.hypot(b.x - a.x, b.y - a.y) > 1400) continue;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
