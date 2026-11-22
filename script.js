@@ -42,6 +42,7 @@
   let ctx;
   let view = { w: 1, h: 1, dpr: 1 };
   let geo = null;
+  let model = null;
   let stars = [];
   let groundLayer = null;
   let towerLayer = null;
@@ -688,7 +689,8 @@
 
     const cramped = view.w < 860 || view.h < 620;
     html.classList.toggle("cramped", cramped);
-    geo = buildGeometry(view.w, view.h, cramped);
+    model = Vehicle.create(view.w, view.h, cramped);
+    geo = model.ui;
 
     const rng = mulberry32((view.w * 131 + view.h * 17) >>> 0);
     stars = [];
@@ -704,12 +706,6 @@
       });
     }
 
-    groundLayer = layer();
-    towerLayer = layer();
-    shipLayer = layer();
-    drawGround(groundLayer.g, geo, rng);
-    drawTower(towerLayer.g, geo, rng);
-    drawShip(shipLayer.g, geo, rng);
     placeCallouts();
     draw(performance.now());
     html.classList.add("ready");
@@ -948,23 +944,12 @@
     const px = reduce ? 0 : mouse.x * 2.2;
     const py = reduce ? 0 : mouse.y * 1.4;
     ctx.globalAlpha = 1;
-    ctx.drawImage(groundLayer.c, px * 0.25, 0, view.w, view.h);
-    ctx.drawImage(towerLayer.c, px * 0.6, py * 0.3, view.w, view.h);
-    let shakeX = 0;
-    let shakeY = 0;
-    if (!reduce && launchStart) {
-      const ms = now - launchStart;
-      if (ms < 700) {
-        shakeX = Math.sin(ms * 0.09) * 0.9;
-        shakeY = Math.cos(ms * 0.13) * 0.45;
-      }
+    if (model) Vehicle.paint(ctx, model, now);
+    syncMission(now);
+    if (!Vehicle.active(model)) {
+      drawScreen(now);
+      drawLeaders();
     }
-    ctx.drawImage(shipLayer.c, px + shakeX, shipShift + py + shakeY, view.w, view.h);
-    drawPlume(now);
-    drawParticles();
-    drawClamps(now);
-    drawScreen(now);
-    drawLeaders();
 
     if (grain) {
       ctx.save();
@@ -998,7 +983,7 @@
     }
     shipHot.style.transform = "translate(" + (reduce ? 0 : mouse.x * 2.2) + "px," + (shipShift + (reduce ? 0 : mouse.y * 1.4)) + "px)";
 
-    if (!reduce && geo) {
+    if (!reduce && geo && !Vehicle.active(model)) {
       const ms = launchStart ? now - launchStart : 0;
       const power = thrust(ms);
       if (power > 0.05) {
@@ -1076,13 +1061,59 @@
   }
 
   function ignite() {
-    if (launchStart && performance.now() - launchStart < 4200) return;
-    launchStart = performance.now();
-    live.textContent = reduce
-      ? "Launch sequence held still, because motion is reduced."
-      : "Engines lit. The stack lifts, then settles back onto the pad.";
-    if (reduce) draw(performance.now());
-    else startLoop();
+    if (reduce) {
+      var summary = document.getElementById("mission-summary");
+      summary.hidden = false;
+      live.textContent = "Mission held still. Notes are on screen.";
+      document.getElementById("summary-close").focus();
+      return;
+    }
+    if (!model || Vehicle.active(model)) return;
+    Vehicle.start(model, performance.now());
+    html.classList.add("mission");
+    document.getElementById("skip-mission").hidden = false;
+    document.getElementById("mission-caption").hidden = false;
+    live.textContent = "Mission running. Escape or skip mission ends it. Labels along the bottom still open each section.";
+    startLoop();
+  }
+
+  function endMission() {
+    if (model) Vehicle.stop(model);
+    html.classList.remove("mission");
+    var skip = document.getElementById("skip-mission");
+    var cap = document.getElementById("mission-caption");
+    if (skip) skip.hidden = true;
+    if (cap) { cap.hidden = true; cap.textContent = ""; }
+    var box = document.getElementById("payloads");
+    if (box) box.replaceChildren();
+    if (model) Vehicle.paint(ctx, model, performance.now());
+  }
+
+  function syncMission(now) {
+    var cap = document.getElementById("mission-caption");
+    var box = document.getElementById("payloads");
+    if (!model || !Vehicle.active(model)) {
+      if (html.classList.contains("mission")) endMission();
+      return;
+    }
+    var pose = model.last;
+    if (cap && pose && pose.beat && cap.textContent !== pose.beat) {
+      cap.hidden = false;
+      cap.textContent = pose.beat;
+      live.textContent = pose.beat;
+    }
+    if (!box || !pose) return;
+    var cards = pose.scene === "earth" && model._cards ? model._cards : [];
+    box.replaceChildren();
+    cards.forEach(function (card) {
+      var el = document.createElement("p");
+      el.className = "payload";
+      el.textContent = card.text;
+      el.style.left = card.x + "px";
+      el.style.top = card.y + "px";
+      if (card.w) el.style.width = card.w + "px";
+      box.appendChild(el);
+    });
   }
 
   /* ---------- panels ---------- */
@@ -1185,6 +1216,7 @@
 
   document.querySelectorAll(".callouts [data-open]").forEach(function (btn) {
     btn.addEventListener("click", function () {
+      if (Vehicle.active(model)) endMission();
       lastFocus = btn;
       openPanel(btn.dataset.open);
     });
@@ -1202,6 +1234,9 @@
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
+      if (Vehicle.active(model)) { endMission(); return; }
+      var summary = document.getElementById("mission-summary");
+      if (summary && !summary.hidden) { summary.hidden = true; return; }
       if (!term.hidden) { closeTerm(); return; }
       if (html.classList.contains("panel-open")) closePanel();
     }
@@ -1361,6 +1396,10 @@
   document.getElementById("term-close").addEventListener("click", function () { closeTerm(true); });
   termHot.addEventListener("click", openTerm);
   shipHot.addEventListener("click", ignite);
+  document.getElementById("skip-mission").addEventListener("click", endMission);
+  document.getElementById("summary-close").addEventListener("click", function () {
+    document.getElementById("mission-summary").hidden = true;
+  });
 
   stage.addEventListener("pointermove", function (e) {
     const r = canvas.getBoundingClientRect();
