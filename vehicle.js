@@ -598,7 +598,7 @@
       yaw: YAW
     };
     var ui = layoutUI(cam, w, h, cramped);
-    return {
+    var model = {
       w: w, h: h, cramped: cramped,
       ship: ship, booster: booster, tower: tower, pad: pad,
       towerX: towerX,
@@ -607,6 +607,8 @@
       mission: null,
       rng: mulberry32(0x11fe)
     };
+    global.Vehicle.current = model;
+    return model;
   }
 
   function layoutUI(cam, w, h, cramped) {
@@ -699,38 +701,42 @@
       pose.steam = 1;
       pose.booster.thrust = 1;
       var u2 = (t - 3.4) / 4.8;
-      var rise = u2 * u2 * 70;
+      var rise = u2 * u2 * 120;
       pose.ship.y += rise;
       pose.booster.y += rise;
-      cam.lookY = rise * 0.55;
-      cam.scale = model.cam0.scale * (1 - u2 * 0.28);
+      cam.oy = model.h * 0.62;
+      cam.lookY = BELL + 40 + rise * 0.55;
+      cam.scale = model.cam0.scale * (1 - u2 * 0.18);
       beat = "Liftoff.";
     } else if (t < 11.2) {
       pose.qd = 1;
       pose.clamps = 1;
       var u3 = (t - 8.2) / 3;
-      var baseRise = 70;
-      pose.booster.y += baseRise + u3 * 10;
-      pose.booster.thrust = 1 - u3 * 0.7;
-      pose.ship.y += baseRise + 18 + u3 * 48;
-      pose.ship.thrust = 1;
-      cam.lookY = 46;
-      cam.scale = model.cam0.scale * 0.7;
+      var baseRise = 120;
+      pose.booster.y += baseRise + u3 * 6;
+      pose.booster.thrust = 0.45 * (1 - u3);
+      pose.ship.y += baseRise + 8 + u3 * 36;
+      pose.ship.thrust = 0.35 + u3 * 0.65;
+      cam.oy = model.h * 0.55;
+      cam.lookY = BELL + BOOST / 2 + baseRise * 0.45;
+      cam.scale = model.cam0.scale * 0.55;
       beat = "Hot staging. Ship separates.";
     } else if (t < 19) {
       var u4 = (t - 11.2) / 7.8;
-      pose.ship.y = BELL + BOOST + SHIP / 2 + 150 + u4 * 70;
-      pose.ship.thrust = u4 < 0.25 ? 0.8 : 0;
-      var rot = u4 < 0.32 ? (u4 / 0.32) * 165 : u4 < 0.62 ? 165 - ((u4 - 0.32) / 0.3) * 165 : 0;
+      pose.ship.y = BELL + BOOST + SHIP / 2 + 210 + u4 * 40;
+      pose.ship.thrust = u4 < 0.2 ? 0.5 : 0;
+      var rot = u4 < 0.28 ? (u4 / 0.28) * 170 : u4 < 0.55 ? 170 - ((u4 - 0.28) / 0.27) * 170 : 0;
       pose.booster.rot = rot;
-      pose.booster.thrust = u4 < 0.78 ? 1 : 0.35;
-      pose.booster.x = -11 * Math.min(1, u4 * 1.15);
-      pose.booster.y = BELL + BOOST / 2 + 90 * (1 - smooth(Math.min(1, (u4 - 0.15) / 0.85)));
-      pose.sticksY = pose.booster.y + 8;
-      pose.sticksOpen = u4 < 0.72 ? 0.85 : 0.85 - ((u4 - 0.72) / 0.28) * 0.7;
+      pose.booster.thrust = u4 < 0.82 ? 0.9 : 0.25;
+      pose.booster.x = -8.5 * smooth(Math.min(1, u4 / 0.7));
+      pose.booster.y = BELL + BOOST / 2 + 55 * (1 - smooth(Math.min(1, Math.max(0, (u4 - 0.2) / 0.7))));
+      pose.sticksY = pose.booster.y + 6;
+      pose.sticksOpen = u4 < 0.78 ? 0.9 : 0.9 - ((u4 - 0.78) / 0.22) * 0.75;
       cam.lookX = -8;
-      cam.lookY = 40;
-      cam.scale = model.cam0.scale * 0.58;
+      cam.lookY = pose.booster.y;
+      cam.oy = model.h * 0.58;
+      cam.ox = model.w * 0.55;
+      cam.scale = model.cam0.scale * 0.8;
       beat = u4 < 0.45 ? "Booster flips and boosts back." : "Chopsticks close. Booster caught.";
     } else if (t < 22.2) {
       pose.scene = "blend";
@@ -747,16 +753,23 @@
     } else if (t < 43.5) {
       pose.scene = "landing";
       var u5 = (t - 34) / 9.5;
-      pose.plasma = u5 < 0.42 ? u5 / 0.42 : u5 < 0.62 ? 1 - (u5 - 0.42) / 0.2 : 0;
-      pose.ship.rot = u5 < 0.55 ? 92 : 92 - ((u5 - 0.55) / 0.2) * 92;
-      if (pose.ship.rot < 0) pose.ship.rot = 0;
-      pose.ship.thrust = u5 > 0.62 ? 1 : 0;
-      var landY = 70 + (1 - smooth(Math.max(0, (u5 - 0.5) / 0.45))) * 80;
-      pose.ship.x = 0;
+      pose.plasma = u5 < 0.48 ? Math.min(1, u5 / 0.2) : Math.max(0, 1 - (u5 - 0.48) / 0.18);
+      pose.ship.rot = u5 < 0.62 ? 90 : Math.max(0, 90 - ((u5 - 0.62) / 0.16) * 90);
+      pose.ship.thrust = u5 > 0.7 ? 1 : 0;
+      var landY = 96 + (1 - smooth(Math.max(0, (u5 - 0.7) / 0.26))) * 28;
+      var aside = u5 < 0.68 ? 34 : 34 * (1 - Math.min(1, (u5 - 0.68) / 0.18));
+      pose.ship.x = -8 + aside;
       pose.ship.y = landY;
-      pose.sticksOpen = u5 < 0.78 ? 0.8 : 0.8 - ((u5 - 0.78) / 0.22) * 0.65;
-      pose.sticksY = landY;
+      pose.sticksOpen = u5 < 0.84 ? 0.95 : 0.95 - ((u5 - 0.84) / 0.16) * 0.8;
+      pose.sticksY = landY + 4;
       pose.tower2 = 1;
+      pose.cam = {
+        scale: model.cam0.scale * 0.85,
+        ox: model.w * (model.cramped ? 0.62 : 0.58),
+        oy: model.h * 0.72,
+        lookX: -4,
+        lookY: landY
+      };
       beat = u5 < 0.4 ? "Reentry. Heat shield takes the plasma." : u5 < 0.6 ? "Belly-flop." : u5 < 0.8 ? "Flip and landing burn." : "Caught on the second tower.";
     } else if (t < 46.5) {
       pose.scene = "blendback";
@@ -846,12 +859,12 @@
   }
 
   function drawLanding(ctx, model, pose) {
-    var cam = {
-      scale: model.cam0.scale * 0.72,
+    var cam = pose.cam || {
+      scale: model.cam0.scale * 0.85,
       ox: model.w * 0.58,
-      oy: model.h * 0.78,
-      lookX: 0,
-      lookY: 40
+      oy: model.h * 0.72,
+      lookX: -4,
+      lookY: pose.ship.y
     };
     var tower = buildTowerLines(-16);
     strokeAll(ctx, tower, null, cam, 1);
@@ -977,7 +990,7 @@
     var dy = dir.y - origin.y;
     var i;
     ctx.fillStyle = INK;
-    var n = Math.floor(70 * power);
+    var n = Math.floor(150 * power);
     for (i = 0; i < n; i++) {
       var k = Math.random();
       var spread = k * k * 5.5;
@@ -1049,60 +1062,200 @@
     ctx.restore();
   }
 
-  function drawEarth(ctx, model, pose) {
-    var cx = model.w * 0.5;
-    var cy = model.h * (model.cramped ? 0.42 : 0.48);
-    var radius = Math.min(model.w, model.h) * (model.cramped ? 0.24 : 0.3);
+  var LAND = [
+    [[71, -156], [70, -141], [68, -136], [60, -140], [59, -138], [55, -133], [54, -130], [51, -128], [49, -125], [48, -124], [43, -124], [38, -123], [34, -120], [32, -117], [27, -114], [23, -110], [19, -105], [16, -95], [15, -92], [13, -87], [8, -77], [9, -80], [11, -84], [15, -83], [16, -88], [18, -91], [21, -90], [21.6, -87.5], [21, -86.8], [18.5, -88], [16, -94], [18, -97], [22, -97.5], [25.5, -97.2], [27.6, -97.2], [28.8, -95.5], [29.3, -94.6], [29.5, -93.4], [29.4, -91.6], [29.2, -90.2], [29.7, -89.4], [30.2, -88.4], [30.3, -87.2], [30.1, -85.7], [29.7, -84.2], [29.8, -83.4], [28.2, -82.7], [26.4, -82.2], [25.2, -81.2], [25.1, -80.4], [26.8, -80.1], [28.4, -80.6], [30.2, -81.4], [31.8, -81], [32.8, -79.8], [34.7, -76.6], [36.8, -75.8], [39.2, -74.4], [40.6, -73.2], [41.4, -70.6], [42.8, -70.4], [43.7, -69.8], [44.8, -67], [46.8, -67.8], [47.6, -64.5], [46.6, -60.4], [47.2, -56], [50.2, -55.6], [52.6, -55.8], [54.6, -57.2], [58.6, -62], [60.4, -64.6], [61.8, -70], [63.6, -68], [66.5, -62], [68.4, -68], [70.2, -80], [73.2, -86], [74, -95], [70.4, -105], [68.6, -114], [69.4, -125], [70.2, -140], [71, -156]],
+    [[12.2, -72], [10.6, -75], [8.2, -77], [4, -77], [0, -80], [-5, -81], [-12, -77], [-18, -71], [-22, -70], [-30, -71], [-40, -73], [-46, -75], [-52, -68], [-55, -67], [-52, -70], [-42, -65], [-35, -57], [-23, -43], [-15, -39], [-8, -35], [-2, -44], [2, -51], [6, -58], [8, -62], [10.6, -68], [12.2, -72]],
+    [[35, -6], [32, -9], [28, -13], [22, -17], [15, -17], [10, -15], [5, -8], [4, -6], [6, 3], [5, 8], [4, 9], [6, 12], [10, 14], [12, 16], [15, 17], [20, 16], [25, 15], [31, 10], [32, 10], [33, 8], [37, 10], [36, 3], [35, -2], [35, -6]],
+    [[36, -6], [40, -9], [43, -9], [44, -1], [46, -1], [48, -5], [50, -5], [51, 2], [54, 8], [56, 8], [58, 10], [60, 5], [62, 5], [64, 12], [68, 16], [70, 28], [69, 40], [66, 44], [64, 40], [60, 28], [56, 22], [52, 20], [48, 16], [45, 14], [44, 12], [41, 10], [38, 9], [36, 6], [36, -2], [36, -6]],
+    [[22, 88], [16, 95], [8, 98], [1, 104], [-4, 105], [-8, 115], [-8, 125], [-15, 125], [-22, 114], [-35, 118], [-35, 137], [-31, 153], [-25, 153], [-15, 145], [-12, 136], [-10, 142], [0, 128], [6, 116], [10, 108], [16, 108], [22, 91], [22, 88]],
+    [[72, -56], [76, -68], [81, -65], [83, -45], [82, -22], [76, -18], [70, -22], [68, -28], [70, -42], [72, -56]],
+    [[23.2, -82.4], [22.2, -84.2], [21.6, -82.8], [20.2, -77.2], [20.6, -74.6], [22.2, -77.8], [23.2, -80.2], [23.2, -82.4]]
+  ];
+
+  function inPoly(lat, lon, poly) {
+    var c = false;
     var i;
-    ctx.fillStyle = INK;
-    for (i = 0; i < 900; i++) {
-      var ang = Math.random() * Math.PI * 2;
-      var rr = Math.sqrt(Math.random()) * radius;
-      var x = cx + Math.cos(ang) * rr;
-      var y = cy + Math.sin(ang) * rr * 0.96;
-      if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius) continue;
-      ctx.globalAlpha = 0.15 + Math.random() * 0.55;
-      ctx.fillRect(x, y, 1, 1);
+    var j = poly.length - 1;
+    for (i = 0; i < poly.length; j = i++) {
+      var yi = poly[i][0];
+      var xi = poly[i][1];
+      var yj = poly[j][0];
+      var xj = poly[j][1];
+      if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) c = !c;
     }
-    ctx.globalAlpha = 0.8;
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, radius, radius * 0.98, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    var a = pose.ang || 0.4;
-    var orbit = radius + (model.cramped ? 26 : 36);
-    var sx = cx + Math.cos(a) * orbit;
-    var sy = cy + Math.sin(a) * orbit * 0.42;
-    ctx.globalAlpha = 0.95;
-    ctx.save();
-    ctx.translate(sx, sy);
-    ctx.rotate(a + Math.PI / 2);
-    ctx.beginPath();
-    ctx.moveTo(0, -7);
-    ctx.lineTo(3, 6);
-    ctx.lineTo(-3, 6);
-    ctx.closePath();
-    ctx.stroke();
-    if (pose.deorbit > 0) {
-      ctx.globalAlpha = 0.6 * pose.deorbit;
-      ctx.fillRect(-1, 6, 2, 8);
-    }
-    ctx.restore();
-    model._shipScreen = { x: sx, y: sy };
-    model._cards = cardsFor(pose, model, sx, sy);
+    return c;
   }
 
-  function cardsFor(pose, model, sx, sy) {
-    if (!pose || pose.scene !== "earth" || pose.t < 23.5) return [];
-    var n = Math.min(FACTS.length, Math.floor((pose.t - 23.5) / 1.15) + 1);
-    var out = [];
+  function isLand(lat, lon) {
     var i;
-    for (i = 0; i < n; i++) {
-      var col = model.cramped ? 12 : model.w * 0.62;
-      var row = model.cramped ? 78 + i * 46 : 90 + (i % 4) * 78;
-      var x = model.cramped ? col : col + (i > 3 ? 210 : 0);
-      out.push({ text: FACTS[i], x: x, y: Math.min(row, model.h - 120), fromX: sx, fromY: sy });
+    for (i = 0; i < LAND.length; i++) if (inPoly(lat, lon, LAND[i])) return true;
+    return false;
+  }
+
+  function buildGlobe() {
+    var rng = mulberry32(0xe427);
+    var lat0 = 28 * Math.PI / 180;
+    var lon0 = -90.6 * Math.PI / 180;
+    var dots = [];
+    var i;
+    for (i = 0; i < 14000; i++) {
+      var lon = (rng() * 2 - 1) * Math.PI;
+      var lat = Math.asin(rng() * 2 - 1);
+      var cosLat = Math.cos(lat);
+      var dlon = lon - lon0;
+      var z = Math.sin(lat0) * Math.sin(lat) + Math.cos(lat0) * cosLat * Math.cos(dlon);
+      if (z <= 0.02) continue;
+      var x = cosLat * Math.sin(dlon);
+      var y = Math.cos(lat0) * Math.sin(lat) - Math.sin(lat0) * cosLat * Math.cos(dlon);
+      var land = isLand(lat * 180 / Math.PI, lon * 180 / Math.PI);
+      dots.push({ x: x, y: y, z: z, land: land, city: land && rng() < 0.045 });
+    }
+    return dots;
+  }
+
+  function earthLayout(model) {
+    var cramped = model.cramped;
+    var cx = model.w * (cramped ? 0.5 : 0.36);
+    var cy = model.h * (cramped ? 0.2 : 0.46);
+    var radius = cramped
+      ? Math.min(model.w * 0.26, model.h * 0.15)
+      : Math.min(model.h * 0.34, model.w * 0.26);
+    return { cx: cx, cy: cy, radius: radius };
+  }
+
+  function drawEarth(ctx, model, pose) {
+    if (!model.globe) model.globe = buildGlobe();
+    var lay = earthLayout(model);
+    var cx = lay.cx;
+    var cy = lay.cy;
+    var radius = lay.radius;
+    var sun = { x: 0.82, y: 0.12, z: 0.56 };
+    var sl = Math.hypot(sun.x, sun.y, sun.z);
+    sun.x /= sl;
+    sun.y /= sl;
+    sun.z /= sl;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#10141c";
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    var i;
+    ctx.fillStyle = INK;
+    for (i = 0; i < model.globe.length; i++) {
+      var d = model.globe[i];
+      var day = d.x * sun.x + d.y * sun.y + d.z * sun.z;
+      var sx = cx + d.x * radius;
+      var sy = cy - d.y * radius;
+      if (d.land) {
+        if (day > 0.05) {
+          ctx.globalAlpha = 0.35 + day * 0.6;
+          ctx.fillRect(sx, sy, day > 0.55 ? 1.7 : 1.2, day > 0.55 ? 1.7 : 1.2);
+        } else if (d.city) {
+          ctx.globalAlpha = 0.55 + Math.abs(day) * 0.4;
+          ctx.fillRect(sx, sy, 1.5, 1.5);
+        } else {
+          ctx.globalAlpha = 0.08;
+          ctx.fillRect(sx, sy, 1, 1);
+        }
+      } else if (day > 0) {
+        ctx.globalAlpha = 0.05 + day * 0.16;
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+    }
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.25;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    for (i = 0; i < 80; i++) {
+      var ang = (i / 80) * Math.PI * 2;
+      var lx = Math.cos(ang);
+      var ly = Math.sin(ang);
+      var limb = lx * sun.x + ly * sun.y;
+      if (limb < 0) continue;
+      ctx.globalAlpha = limb * 0.45;
+      ctx.fillRect(cx + lx * radius * 1.035, cy - ly * radius * 1.035, 1.6, 1.6);
+    }
+    var a = pose.ang || 0.4;
+    var orbit = radius + (model.cramped ? 18 : 28);
+    var k;
+    ctx.lineWidth = 1;
+    for (k = 18; k >= 1; k--) {
+      var a0 = a - k * 0.045;
+      var a1 = a - (k - 1) * 0.045;
+      ctx.globalAlpha = 0.05 + (1 - k / 18) * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a0) * orbit, cy + Math.sin(a0) * orbit * 0.55);
+      ctx.lineTo(cx + Math.cos(a1) * orbit, cy + Math.sin(a1) * orbit * 0.55);
+      ctx.stroke();
+    }
+    var sx = cx + Math.cos(a) * orbit;
+    var sy = cy + Math.sin(a) * orbit * 0.55;
+    var vx = -Math.sin(a);
+    var vy = Math.cos(a) * 0.55;
+    var len = Math.hypot(vx, vy) || 1;
+    var rot = Math.atan2(vx / len, -vy / len) * 180 / Math.PI;
+    var ppm = model.cramped ? 1.15 : 1.7;
+    var shipCam = {
+      scale: ppm,
+      ox: sx,
+      oy: sy,
+      lookX: 0,
+      lookY: SHIP / 2
+    };
+    var shipPose = {
+      x: 0, y: SHIP / 2, rot: rot, pivotX: 0, pivotY: SHIP / 2,
+      thrust: pose.deorbit || 0, plasma: 0
+    };
+    drawBody(ctx, model.ship, shipPose, shipCam, 1);
+    if (pose.deorbit > 0) drawExhaust(ctx, shipCam, shipPose, 1.1, pose.deorbit, model);
+    model._shipScreen = { x: sx, y: sy };
+    model._cards = cardsFor(pose, model, sx, sy, cx, cy, radius);
+    ctx.restore();
+  }
+
+  function cardsFor(pose, model, sx, sy, cx, cy, radius) {
+    if (!pose || pose.scene !== "earth" || pose.t < 23.2) return [];
+    var cramped = model.cramped;
+    var cardW = cramped ? Math.min(168, model.w - 20) : 210;
+    var cardH = cramped ? 58 : 70;
+    var gap = cardH + 10;
+    var maxShow = cramped ? 3 : 4;
+    var slotX = cramped ? 8 : Math.min(model.w - cardW - 18, cx + radius + 36);
+    var slotY0 = cramped ? cy + radius + 18 : 78;
+    var navClear = model.h - (cramped ? 150 : 120);
+    var out = [];
+    var shown = 0;
+    var i;
+    var released = 0;
+    for (i = 0; i < FACTS.length; i++) if (pose.t >= 23.2 + i * 1.05) released++;
+    var first = Math.max(0, released - maxShow);
+    for (i = first; i < released; i++) {
+      var born = 23.2 + i * 1.05;
+      var u = smooth(Math.max(0, Math.min(1, (pose.t - born) / 0.85)));
+      var ox = sx - cx;
+      var oy = sy - cy;
+      var olen = Math.hypot(ox, oy) || 1;
+      var ux = ox / olen;
+      var uy = oy / olen;
+      var tx = slotX;
+      var ty = Math.min(slotY0 + shown * gap, navClear - cardH);
+      var px;
+      var py;
+      if (u < 1 && !cramped) {
+        var reach = radius + 22 + u * 8;
+        px = cx + ux * reach + (ux >= 0 ? 8 : -cardW - 8);
+        py = cy + uy * reach - cardH * 0.35;
+      } else {
+        px = tx;
+        py = ty;
+        shown++;
+      }
+      px = Math.max(8, Math.min(model.w - cardW - 8, px));
+      py = Math.max(56, Math.min(navClear - cardH, py));
+      out.push({ text: FACTS[i], x: px, y: py, w: cardW });
     }
     return out;
   }
@@ -1117,12 +1270,46 @@
     }
   }
 
+  function frames(model) {
+    var cam = model.cam0;
+    function P(x, y, z) { return project({ x: x, y: y, z: z || 0 }, cam); }
+    function box(pts, pad) {
+      var minX = 1e9;
+      var minY = 1e9;
+      var maxX = -1e9;
+      var maxY = -1e9;
+      var i;
+      for (i = 0; i < pts.length; i++) {
+        var s = P(pts[i][0], pts[i][1], pts[i][2]);
+        if (s.x < minX) minX = s.x;
+        if (s.y < minY) minY = s.y;
+        if (s.x > maxX) maxX = s.x;
+        if (s.y > maxY) maxY = s.y;
+      }
+      return {
+        x: Math.max(0, Math.floor(minX - pad)),
+        y: Math.max(0, Math.floor(minY - pad)),
+        width: Math.ceil(maxX - minX + pad * 2),
+        height: Math.ceil(maxY - minY + pad * 2)
+      };
+    }
+    var top = BELL + BOOST + SHIP;
+    var finY = BELL + BOOST - 6;
+    return {
+      ship: box([[-8, top, 0], [12, top - 24, 1], [-6, top - 30, 0], [8, BELL + BOOST + SHIP - NOSE, 0]], 28),
+      fins: box([[-6, finY + 8, 0], [12, finY - 6, 1], [0, BELL + BOOST - 2, 0], [-4, BELL + BOOST + 4, 0]], 26),
+      base: box([[-18, 0, 8], [18, 0, 8], [0, BELL + 8, 0], [-10, DECK, 10], [12, 6, -4]], 18),
+      tower: box([[-28, 0, -4], [-14, TOWER + 8, 4], [-21, 80, 6], [-10, 40, 0]], 12)
+    };
+  }
+
   global.Vehicle = {
     create: create,
     paint: paint,
     start: start,
     stop: stop,
     active: active,
+    frames: frames,
     FACTS: FACTS
   };
 })(window);

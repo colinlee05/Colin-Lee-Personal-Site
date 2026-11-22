@@ -1111,6 +1111,7 @@
       el.textContent = card.text;
       el.style.left = card.x + "px";
       el.style.top = card.y + "px";
+      if (card.w) el.style.width = card.w + "px";
       box.appendChild(el);
     });
   }
