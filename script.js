@@ -37,7 +37,7 @@
     contact: "contact",
   };
 
-  const RIDES = { nose: 1, flap: 1, hull: 1, aft: 1, fin: 1, booster: 1 };
+  const RIDES = { ship: 1, nose: 1 };
 
   let ctx;
   let view = { w: 1, h: 1, dpr: 1 };
@@ -729,17 +729,7 @@
       el.style.left = "";
       el.style.right = "";
     });
-    if (!cramped) {
-      const whisperH = document.querySelector(".whisper").offsetHeight;
-      const top = Math.max(78, geo.yTip - 8);
-      const botL = Math.min(view.h - 48, geo.base - 34);
-      const botR = Math.min(geo.base - 28, view.h - whisperH - 30);
-      const leftX = geo.leftReach - 18;
-      let rightX = Math.max(geo.rightReach, geo.comp.x + geo.comp.w) + 54;
-      rightX = Math.min(rightX, view.w - 250);
-      spread(left, top, Math.max(top + 48, botL), "left", leftX);
-      spread(right, top, Math.max(top + 48, botR), "right", rightX);
-    }
+    if (!cramped && geo.anchors) placeLabels(els);
     measureJoints();
     const lift = shipShift;
     shipHot.style.left = geo.cx - geo.hw - 18 + "px";
@@ -751,6 +741,68 @@
     termHot.style.top = geo.comp.y - 8 + "px";
     termHot.style.width = geo.comp.w + 20 + "px";
     termHot.style.height = geo.base - geo.comp.y + 10 + "px";
+  }
+
+  function idOfCallout(el) {
+    return el.dataset.open || "resume";
+  }
+
+  function overlaps(a, b, pad) {
+    return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x &&
+      a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+  }
+
+  function placeLabels(els) {
+    const A = geo.anchors;
+    const byId = {};
+    els.forEach(function (el) { byId[idOfCallout(el)] = el; });
+    const boxes = [];
+    function add(id, x, y) {
+      const el = byId[id];
+      if (!el) return;
+      boxes.push({
+        id: id,
+        el: el,
+        x: x,
+        y: y,
+        w: el.offsetWidth,
+        h: el.offsetHeight
+      });
+    }
+    function stack(ids, x, y) {
+      let cursor = y;
+      ids.forEach(function (id) {
+        const el = byId[id];
+        if (!el) return;
+        add(id, x, cursor);
+        cursor += el.offsetHeight + 6;
+      });
+    }
+    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 16, A.home.y - 28);
+    if (A.stadium && byId.education) {
+      add("education", A.stadium.x - byId.education.offsetWidth - 20, A.stadium.y - byId.education.offsetHeight - 92);
+    }
+    if (A.memorial && byId.certifications) {
+      add("certifications", A.memorial.x - byId.certifications.offsetWidth - 28, A.memorial.y - 36);
+    }
+    if (A.dish && byId.contact) add("contact", A.dish.x + 16, A.dish.y - byId.contact.offsetHeight - 2);
+    if (geo.comp) {
+      const col = ["experience", "resume", "projects", "skills", "resources"].filter(function (id) { return byId[id]; });
+      const widest = col.reduce(function (m, id) { return Math.max(m, byId[id].offsetWidth); }, 0);
+      const total = col.reduce(function (m, id) { return m + byId[id].offsetHeight + 6; }, -6);
+      stack(col, geo.comp.x + geo.comp.w - widest, geo.comp.y - total - 10);
+    }
+    if (A.ship && byId["blog-updates"]) {
+      add("blog-updates", A.ship.x + 22, A.ship.y - byId["blog-updates"].offsetHeight * 0.5);
+    }
+    boxes.forEach(function (a) {
+      a.x = Math.max(8, Math.min(view.w - a.w - 12, a.x));
+      a.y = Math.max(70, Math.min(view.h - a.h - 28, a.y));
+    });
+    boxes.forEach(function (b) {
+      b.el.style.left = Math.round(b.x) + "px";
+      b.el.style.top = Math.round(b.y) + "px";
+    });
   }
 
   function spread(els, y0, y1, side, xAnchor) {
@@ -879,9 +931,12 @@
       if (html.classList.contains("panel-open") && j.side === "right") return;
       const a = anchorXY(j.anchor);
       const hot = hoverId === j.id;
+      const elbow = j.x + (a.x >= j.x ? 16 : -16);
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(j.x, j.y);
+      ctx.moveTo(j.x, j.y);
+      ctx.lineTo(elbow, j.y);
+      ctx.lineTo(elbow, a.y);
+      ctx.lineTo(a.x, a.y);
       ctx.strokeStyle = hot ? "rgba(244,241,232,0.95)" : "rgba(244,241,232,0.4)";
       ctx.lineWidth = hot ? 1.35 : 1;
       ctx.stroke();
