@@ -1168,7 +1168,7 @@
     if (groundScreen > navClear) {
       var shipScreen = pose.landCam.oy - (ly - pose.landCam.lookY) * pose.landCam.scale;
       var need = groundScreen - navClear;
-      var room = Math.max(0, shipScreen - 64);
+      var room = Math.max(0, shipScreen - 88);
       pose.landCam.oy -= Math.min(need, room);
       if (need > room) {
         var shipNow = shipScreen - room;
@@ -1178,6 +1178,58 @@
           pose.landCam.oy = shipNow + (ly - pose.landCam.lookY) * pose.landCam.scale;
           pose.landCam.oy -= (pose.landCam.oy + pose.landCam.lookY * pose.landCam.scale) - navClear;
         }
+      }
+    }
+    function bellyExtents(cam) {
+      var tail = project(xform({ x: 0, y: 0, z: 0 }, pose.landShip), cam);
+      var nose = project(xform({ x: 0, y: SHIP, z: 0 }, pose.landShip), cam);
+      var dx = nose.x - tail.x;
+      var dy = nose.y - tail.y;
+      var al = Math.hypot(dx, dy) || 1;
+      var ax = dx / al;
+      var ay = dy / al;
+      var px = -ay;
+      var py = ax;
+      if (py > 0) { px = -px; py = -py; }
+      var dia = al / 5.5;
+      var minX = 1e9;
+      var minY = 1e9;
+      var maxX = -1e9;
+      var maxY = -1e9;
+      var i;
+      for (i = 0; i <= 16; i++) {
+        var u = i / 16;
+        var r = dia * 0.5;
+        if (u > 0.68) r *= Math.cos(((u - 0.68) / 0.32) * Math.PI / 2);
+        var flap = 0;
+        if (u > 0.64 && u < 0.9) flap = dia * 0.32;
+        if (u < 0.36) flap = Math.max(flap, dia * 0.46);
+        var x = tail.x + ax * al * u;
+        var y = tail.y + ay * al * u;
+        var xs = [x + px * (r + flap), x - px * r];
+        var ys = [y + py * (r + flap), y - py * r];
+        var k;
+        for (k = 0; k < 2; k++) {
+          if (xs[k] < minX) minX = xs[k];
+          if (ys[k] < minY) minY = ys[k];
+          if (xs[k] > maxX) maxX = xs[k];
+          if (ys[k] > maxY) maxY = ys[k];
+        }
+      }
+      return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+    }
+    var ext = bellyExtents(pose.landCam);
+    if (ext.minX < 36) pose.landCam.ox += 36 - ext.minX;
+    if (ext.maxX > model.w - 36) pose.landCam.ox -= ext.maxX - (model.w - 36);
+    ext = bellyExtents(pose.landCam);
+    if (ext.minY < 72) {
+      var drop = 72 - ext.minY;
+      var gNow = pose.landCam.oy + pose.landCam.lookY * pose.landCam.scale;
+      var roomDown = Math.max(0, navClear - gNow);
+      if (drop <= roomDown) pose.landCam.oy += drop;
+      else {
+        pose.landCam.scale = Math.max(1.05, pose.landCam.scale * (1 - (drop - roomDown) / Math.max(120, ly * pose.landCam.scale)));
+        pose.landCam.oy = Math.min(navClear, gNow + roomDown) - pose.landCam.lookY * pose.landCam.scale;
       }
     }
     pose.shipIn = 1;
@@ -1301,8 +1353,10 @@
       var x = 16 + ((i * 97) % Math.max(20, model.w - 32));
       var dy = 2 + (i * 17) % 14;
       if (y + dy > model.h - 6) continue;
-      ctx.globalAlpha = 0.08 + (i % 4) * 0.035;
-      ctx.fillRect(x, y + dy, i % 6 === 0 ? 2.2 : 1.3, 1.2);
+      ctx.globalAlpha = 0.08 + (i % 4) * 0.03;
+      ctx.beginPath();
+      ctx.arc(x, y + dy, 0.7, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
     return y;
@@ -1328,7 +1382,8 @@
       base = project({ x: spec.x, y: 0, z: 0 }, local);
     }
     if (top.y > model.h + 8 || base.y < -8) return;
-    if (base.x < -40 || base.x > model.w + 40) return;
+    var foot = 10 * local.scale;
+    if (base.x - foot < 6 || base.x + foot > model.w - 6) return;
     var shift = spec.x - model.towerX;
     var pose = { x: shift, y: 0, rot: 0, pivotX: 0, pivotY: 0, z: 0 };
     strokeAll(ctx, model.tower, pose, local, spec.alpha);
@@ -1370,27 +1425,42 @@
 
   function drawCoast(ctx, model, cam) {
     if (!cam || cam.scale < model.cam0.scale * 0.42) return;
-    var ground = coastSpot(cam, 0, 0);
-    if (ground.y < 36 || ground.y > model.h - 108) return;
+    var horizon = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam);
+    var ground = { x: project({ x: 0, y: 0, z: 0 }, cam).x, y: horizon.y };
+    if (ground.y < 36) return;
+    if (model.mission && ground.y > model.h - 108) return;
     var s = Math.max(0.42, Math.min(1, cam.scale / model.cam0.scale));
     var cramped = model.cramped;
+    var showLabels = s >= 0.84;
+    var towerXs = [
+      project({ x: model.towerX, y: 0, z: 0 }, cam).x,
+      project({ x: -16, y: 0, z: 0 }, cam).x
+    ];
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.lineWidth = 1.15;
-    function site(meters, draw, label, lift) {
+    function site(meters, draw, label, lift, half) {
       var p = coastSpot(cam, meters, 0);
-      if (p.x < 18 || p.x > model.w - 18) return;
+      p.y = ground.y;
+      var hw = (half || 36) * s;
+      if (p.x - hw < 8 || p.x + hw > model.w - 8) return;
       ctx.globalAlpha = 0.62;
       draw(ctx, p.x, p.y, s * 1.28);
-      if (label) {
+      if (label && showLabels) {
         ctx.globalAlpha = 0.72;
         ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
         var tw = ctx.measureText(label).width;
         var tx = label.indexOf("LSU") === 0 ? p.x - tw + 8 : p.x - tw / 2;
-        ctx.fillText(label, tx, p.y - lift);
+        var ty = p.y - lift;
+        var clear = tx > 8 && tx + tw < model.w - 8;
+        var i;
+        for (i = 0; i < towerXs.length && clear; i++) {
+          if (tx < towerXs[i] + 34 && tx + tw > towerXs[i] - 34) clear = false;
+        }
+        if (clear) ctx.fillText(label, tx, ty);
       }
     }
     if (cramped) {
@@ -1427,11 +1497,11 @@
       ctx.globalAlpha = 0.9;
       ctx.fillText("Pad B", Math.min(padBX - 4, model.w - 32), ground.y - 44);
     } else {
-      site(-580, drawHome, "Home, New Orleans", 84);
-      site(-500, drawDish, "", 0);
-      site(-330, drawStadium, "LSU, Baton Rouge", 72);
-      site(-190, drawMemorial, "", 0);
-      site(190, drawOffice, "", 0);
+      site(-580, drawHome, "Home, New Orleans", 84, 48);
+      site(-500, drawDish, "", 0, 16);
+      site(-330, drawStadium, "LSU, Baton Rouge", 72, 62);
+      site(-190, drawMemorial, "", 0, 16);
+      site(190, drawOffice, "", 0, 22);
     }
     ctx.restore();
   }
@@ -1546,10 +1616,19 @@
     }
   }
 
+  function clipToGround(ctx, cam, model) {
+    var y = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam).y;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-80, -400, model.w + 160, y + 401.5);
+    ctx.clip();
+  }
+
   function drawPad(ctx, model, pose) {
     var cam = pose.cam || model.cam0;
     var t = pose.t || 0;
     drawHorizon(ctx, cam, model);
+    clipToGround(ctx, cam, model);
     drawCoast(ctx, model, cam);
     var bPowEarly = pose.booster.plume != null ? pose.booster.plume : pose.booster.thrust;
     var engineY = xform({ x: 0, y: 1.2, z: 0 }, pose.booster).y;
@@ -1596,6 +1675,7 @@
     drawChopsticks(ctx, cam, model.towerX, pose.sticksY, pose.sticksOpen, 1);
     drawQD(ctx, cam, model.towerX, pose.qd, pose.ship);
     drawClamps(ctx, cam, pose.clamps);
+    ctx.restore();
     if (!model.mission || pose.showComputer) drawComputer(ctx, model);
   }
 
@@ -1605,6 +1685,7 @@
     var t = pose.t || 0;
     var shipA = pose.shipIn == null ? 1 : pose.shipIn;
     drawHorizon(ctx, cam, model);
+    clipToGround(ctx, cam, model);
     drawCoast(ctx, model, cam);
     if (t > 52 && !model.cramped) {
       drawAnchoredTower(ctx, model, cam, {
@@ -1625,6 +1706,7 @@
     if (ship.plasma > 0.04 && shipA > 0.05) drawPlasma(ctx, ship, cam, ship.plasma * shipA, t);
     drawBody(ctx, model.ship, ship, cam, shipA);
     drawChopsticks(ctx, cam, -16, pose.sticks2Y, pose.sticks2Open, 1);
+    ctx.restore();
   }
 
   var SKY = "#1c1a21";
@@ -1710,54 +1792,84 @@
     }
   }
 
-  function drawProfileFlaps(ctx, pose, cam, alpha) {
+  function drawBellyProfile(ctx, pose, cam, alpha) {
     var tail = project(xform({ x: 0, y: 0, z: 0 }, pose), cam);
     var nose = project(xform({ x: 0, y: SHIP, z: 0 }, pose), cam);
-    var lee = project(xform({ x: R + 3, y: SHIP * 0.5, z: 0 }, pose), cam);
-    var mid = project(xform({ x: 0, y: SHIP * 0.5, z: 0 }, pose), cam);
-    var ax = nose.x - tail.x;
-    var ay = nose.y - tail.y;
-    var al = Math.hypot(ax, ay) || 1;
-    ax /= al;
-    ay /= al;
-    var lx = lee.x - mid.x;
-    var ly = lee.y - mid.y;
-    var ll = Math.hypot(lx, ly) || 1;
-    lx /= ll;
-    ly /= ll;
-    function flap(u, chord, rise) {
-      var bx = tail.x + (nose.x - tail.x) * u;
-      var by = tail.y + (nose.y - tail.y) * u;
-      var cax = ax * chord * 0.5;
-      var cay = ay * chord * 0.5;
+    var dx = nose.x - tail.x;
+    var dy = nose.y - tail.y;
+    var al = Math.hypot(dx, dy) || 1;
+    var ax = dx / al;
+    var ay = dy / al;
+    var px = -ay;
+    var py = ax;
+    if (py > 0) { px = -px; py = -py; }
+    var dia = al / 5.5;
+    function radiusAt(u) {
+      var r = dia * 0.5;
+      if (u > 0.68) r *= Math.cos(((u - 0.68) / 0.32) * Math.PI / 2);
+      else if (u < 0.035) r *= Math.sin((u / 0.035) * Math.PI / 2);
+      return r;
+    }
+    function at(u, side) {
+      return {
+        x: tail.x + ax * al * u + px * side,
+        y: tail.y + ay * al * u + py * side
+      };
+    }
+    var steps = 22;
+    var i;
+    ctx.beginPath();
+    for (i = steps; i >= 0; i--) {
+      var u = i / steps;
+      var p = at(u, -radiusAt(u));
+      if (i === steps) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    for (i = 0; i <= steps; i++) {
+      var q = at(i / steps, radiusAt(i / steps));
+      ctx.lineTo(q.x, q.y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = SKY;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+    function flap(u0, u1, rise) {
+      var a = at(u0, radiusAt(u0) * 0.92);
+      var b = at(u1, radiusAt(u1) * 0.92);
+      var c = at(u1 - (u1 - u0) * 0.18, radiusAt(u1) + rise);
+      var d = at(u0 + (u1 - u0) * 0.22, radiusAt(u0) + rise * 0.72);
       ctx.beginPath();
-      ctx.moveTo(bx - cax, by - cay);
-      ctx.lineTo(bx + cax * 0.15, by + cay * 0.15);
-      ctx.lineTo(bx + cax * 0.2 + lx * rise, by + cay * 0.2 + ly * rise);
-      ctx.lineTo(bx - cax * 0.55 + lx * rise * 0.72, by - cay * 0.55 + ly * rise * 0.72);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
       ctx.closePath();
       ctx.fillStyle = SKY;
       ctx.globalAlpha = alpha;
       ctx.fill();
       ctx.strokeStyle = INK;
-      ctx.lineWidth = 1.35;
+      ctx.lineWidth = 1.25;
       ctx.globalAlpha = alpha;
       ctx.stroke();
     }
-    var dia = Math.hypot(nose.x - tail.x, nose.y - tail.y) / 5.5;
-    flap(0.8, dia * 0.42, dia * 0.95);
-    flap(0.72, dia * 0.3, dia * 0.55);
-    flap(0.26, dia * 0.95, dia * 1.45);
-    flap(0.14, dia * 0.7, dia * 0.85);
+    flap(0.76, 0.86, dia * 0.16);
+    flap(0.68, 0.77, dia * 0.24);
+    flap(0.05, 0.16, dia * 0.3);
+    flap(0.14, 0.28, dia * 0.4);
     ctx.fillStyle = INK;
-    var bi;
-    for (bi = 0; bi < 28; bi++) {
-      var u = 0.12 + (bi / 27) * 0.7;
-      var bx = tail.x + (nose.x - tail.x) * u;
-      var by = tail.y + (nose.y - tail.y) * u;
-      var off = dia * (0.55 + (bi % 4) * 0.08);
-      ctx.globalAlpha = alpha * (0.35 + (bi % 3) * 0.15);
-      ctx.fillRect(bx - lx * off, by - ly * off, 2.2, 2.2);
+    for (i = 0; i < 36; i++) {
+      var u = 0.1 + (i / 35) * 0.72;
+      var p = at(u, -(radiusAt(u) + 1.4 + (i % 4) * 0.7));
+      ctx.globalAlpha = alpha * (0.28 + (i % 5) * 0.1);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 0.7 + (i % 3) * 0.35, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
@@ -1787,12 +1899,13 @@
     var tilt = Math.abs(pose.rot || 0) % 180;
     if (tilt > 90) tilt = 180 - tilt;
     var profile = body.kind === "ship" && tilt > 42;
-    if (!profile) {
-      for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
+    if (profile) {
+      drawBellyProfile(ctx, pose, cam, alpha);
+      return;
     }
+    for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
     fillSilhouette(ctx, body, pose, cam, alpha, lod < 2);
-    if (profile) drawProfileFlaps(ctx, pose, cam, alpha);
-    else {
+    {
       for (i = 0; i < flaps.length; i++) if (!flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
     }
     if (lod >= 2) {
@@ -1969,44 +2082,80 @@
     }
   }
 
+  function stippleDot(ctx, x, y, r) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function roundStipple(ctx, x, y, r, alpha) {
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    var ink = "244,241,232";
+    g.addColorStop(0, "rgba(" + ink + "," + alpha + ")");
+    g.addColorStop(0.55, "rgba(" + ink + "," + (alpha * 0.45) + ")");
+    g.addColorStop(1, "rgba(" + ink + ",0)");
+    ctx.fillStyle = g;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function drawLiftoffColumn(ctx, cam, pose, power, t) {
     var origin = xform({ x: 0, y: 1.2, z: 0 }, pose);
-    var row;
-    var col;
-    ctx.fillStyle = INK;
-    var rows = 26;
-    var cols = 13;
-    for (row = 0; row < rows; row++) {
-      var u = row / (rows - 1);
-      var half = R * (1.05 + u * 2.4);
-      var y = origin.y + (0.35 - origin.y) * Math.pow(u, 0.72);
-      for (col = 0; col < cols; col++) {
-        var side = (col / (cols - 1) - 0.5) * 2 * half;
-        side += (hash(row * 17 + col) - 0.5) * half * 0.16;
-        var depth = (hash(row * 13 + col + 4) - 0.5) * half * 0.45;
-        var p = project({ x: origin.x + side, y: y, z: depth }, cam);
-        ctx.globalAlpha = (0.55 + 0.4 * (1 - u)) * power;
-        var s = u > 0.55 ? 5.4 : 3.6;
-        ctx.fillRect(p.x - s * 0.35, p.y - s * 0.35, s, s);
-      }
+    var ground = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam);
+    var i;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.05;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    for (i = 0; i < 160; i++) {
+      var u = i / 159;
+      var half = R * (0.55 + u * 0.28);
+      var side = (hash(i + 3) - 0.5) * 2 * half;
+      var y = origin.y + (1.4 - origin.y) * Math.pow(u, 0.9);
+      var p = project({ x: origin.x + side, y: y, z: (hash(i + 9) - 0.5) * half * 0.3 }, cam);
+      roundStipple(ctx, p.x, p.y, 1.15 + hash(i + 11) * 0.7, (0.55 + 0.4 * (1 - u)) * power);
+    }
+    for (i = 0; i < 140; i++) {
+      var u2 = i / 139;
+      var half2 = R * (1.05 + u2 * 1.35);
+      var side2 = (hash(i + 40) - 0.5) * 2 * half2;
+      var y2 = origin.y + (0.8 - origin.y) * Math.pow(u2, 0.75);
+      var p2 = project({ x: origin.x + side2, y: y2, z: (hash(i + 21) - 0.5) * half2 * 0.35 }, cam);
+      roundStipple(ctx, p2.x, p2.y, 0.9 + hash(i + 8) * 0.6, (0.16 + 0.22 * (1 - u2)) * power);
     }
     var sideSign;
     for (sideSign = -1; sideSign <= 1; sideSign += 2) {
-      var along;
-      var layer;
-      for (along = 0; along < 12; along++) {
-        for (layer = 0; layer < 5; layer++) {
-          var drift = fract(hash(along * 9 + layer + 3) + t * 0.18);
-          var x = sideSign * (9 + along * 2.5 + (hash(along + layer) - 0.5) * 1.6);
-          var y2 = 0.25 + layer * 0.85 + drift * 1.4;
-          var p2 = project({
-            x: x,
-            y: y2,
-            z: (hash(along * 5 + layer) - 0.5) * 8
+      var b;
+      for (b = 0; b < 3; b++) {
+        ctx.beginPath();
+        var n;
+        var first = true;
+        for (n = 0; n <= 7; n++) {
+          var along = 8 + n * 4.2 + b * 1.4;
+          var hump = Math.sin((n / 7) * Math.PI) * (3.2 + b * 1.3);
+          var p3 = project({
+            x: sideSign * along,
+            y: 0.35 + hump,
+            z: (b - 1) * 3
           }, cam);
-          ctx.globalAlpha = (0.35 + 0.45 * (1 - layer / 5)) * power;
-          ctx.fillRect(p2.x, p2.y, 3.4, 2.4);
+          var yb = Math.min(p3.y, ground.y - 1);
+          if (first) { ctx.moveTo(p3.x, yb); first = false; }
+          else ctx.quadraticCurveTo(p3.x, yb - (4 + b * 3), p3.x, yb);
         }
+        ctx.globalAlpha = (0.42 - b * 0.08) * power;
+        ctx.stroke();
+      }
+      for (i = 0; i < 70; i++) {
+        var along2 = 7 + hash(i + 60) * 28;
+        var puff = hash(i + 90) * 3.2;
+        var p4 = project({
+          x: sideSign * along2,
+          y: 0.3 + puff,
+          z: (hash(i + 14) - 0.5) * 6
+        }, cam);
+        roundStipple(ctx, p4.x, Math.min(p4.y, ground.y - 1.5), 0.9 + hash(i + 7) * 0.7, (0.16 + hash(i + 2) * 0.28) * power);
       }
     }
   }
@@ -2024,7 +2173,7 @@
         z: Math.sin(ang) * rad * 0.55
       }, cam);
       ctx.globalAlpha = (1 - phase) * 0.28 * amount;
-      ctx.fillRect(p.x, p.y, phase > 0.5 ? 2.4 : 1.6, 1.6);
+      stippleDot(ctx, p.x, p.y, phase > 0.5 ? 1.05 : 0.7);
     }
   }
 
@@ -2042,7 +2191,7 @@
         z: Math.sin(ang) * rad
       }, cam);
       ctx.globalAlpha = (1 - phase) * 0.32 * amount;
-      ctx.fillRect(p.x, p.y, 1.8, 1.8);
+      stippleDot(ctx, p.x, p.y, 0.75);
     }
   }
 
@@ -2190,8 +2339,7 @@
       }, cam);
       var hot = 1 - phase;
       ctx.globalAlpha = (0.28 + 0.7 * hot) * amount;
-      var s = (hot > 0.5 ? 5.4 : 3.2) * (far > 1 ? 1.35 : 1);
-      ctx.fillRect(p.x - s * 0.45, p.y - s * 0.28, s + 2, s * 0.55);
+      stippleDot(ctx, p.x, p.y, hot > 0.55 ? 1.35 : 0.8);
     }
   }
 
