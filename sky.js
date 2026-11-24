@@ -23,9 +23,33 @@
     [12.519, -57.113, 1.33], [13.398, -53.466, 1.91], [14.111, -36.37, 2.06],
     [15.578, 26.715, 2.14], [16.005, -22.621, 2.29], [17.582, 12.56, 2.08],
     [18.921, -26.296, 2.05], [19.507, 27.96, 2.23], [21.736, 9.876, 2.08],
-    [23.079, 28.083, 2.07], [0.726, -17.987, 2.04], [11.818, 14.572, 2.14],
+    [23.079, 28.083, 2.07],     [0.726, -17.987, 2.04], [11.818, 14.572, 2.14],
     [16.808, -34.293, 1.92], [4.952, 33.166, 1.65], [6.746, -52.696, 1.86]
   ];
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0;
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function buildField() {
+    var rng = mulberry32(0x5a11);
+    var out = [];
+    var n;
+    for (n = 0; n < 640; n++) {
+      var mag = 2.6 + rng() * 2.1;
+      if (rng() < 0.035) mag = 1.45 + rng() * 0.7;
+      out.push([rng() * 24, (Math.asin(rng() * 2 - 1) * 180) / Math.PI, mag]);
+    }
+    return out;
+  }
+
+  var FIELD = buildField();
 
   function daysSinceJ2000(ms) {
     return (ms - Date.UTC(2000, 0, 1, 12, 0, 0)) / 86400000;
@@ -86,88 +110,126 @@
     return phase < 0.5 ? nx > edge : nx < -edge;
   }
 
+  function hash2(a, b) {
+    var s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+    return s - Math.floor(s);
+  }
+
+  function shadeBlob(ctx, radius, cx, cy, rings) {
+    var i;
+    for (i = 0; i < rings.length; i++) {
+      var ring = rings[i];
+      ctx.beginPath();
+      ctx.ellipse(cx * radius, cy * radius, ring[0] * radius, ring[1] * radius, ring[2], 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   function drawMoon(ctx, x, y, radius, phase) {
     ctx.save();
     ctx.translate(x, y);
+    var glow = ctx.createRadialGradient(0, 0, radius * 0.85, 0, 0, radius * 2.1);
+    glow.addColorStop(0, "rgba(244,241,232,0.18)");
+    glow.addColorStop(0.55, "rgba(244,241,232,0.05)");
+    glow.addColorStop(1, "rgba(244,241,232,0)");
+    ctx.fillStyle = glow;
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 2.1, 0, Math.PI * 2);
+    ctx.fill();
     ctx.save();
     ctx.beginPath();
-    ctx.arc(0, 0, radius - 0.6, 0, Math.PI * 2);
+    ctx.arc(0, 0, radius - 0.4, 0, Math.PI * 2);
     ctx.clip();
     ctx.fillStyle = INK;
+    var litSide = phase < 0.5 ? 1 : -1;
     var row;
     var col;
-    var step = Math.max(1.15, radius / 7);
+    var step = 1.05;
     for (row = -radius; row <= radius; row += step) {
       for (col = -radius; col <= radius; col += step) {
-        var nx = col / radius;
-        var ny = row / radius;
-        if (nx * nx + ny * ny > 0.9) continue;
+        var jx = (hash2(row, col) - 0.5) * step * 0.95;
+        var jy = (hash2(col, row + 3) - 0.5) * step * 0.95;
+        var px = col + jx;
+        var py = row + jy;
+        var nx = px / radius;
+        var ny = py / radius;
+        if (nx * nx + ny * ny > 0.86) continue;
         if (!moonLit(nx, ny, phase)) continue;
-        var spin = Math.sin(row * 12.9898 + col * 78.233) * 43758.5453;
-        var jitter = (spin - Math.floor(spin) - 0.5) * step * 0.7;
-        ctx.globalAlpha = 0.5 + (1 - Math.sqrt(nx * nx + ny * ny)) * 0.4;
-        ctx.fillRect(col + jitter, row + jitter * 0.4, 1.2, 1.2);
+        var limb = Math.cos(phase * Math.PI * 2);
+        var edge = limb * Math.sqrt(Math.max(0, 1 - ny * ny));
+        var depth = phase < 0.5 ? nx - edge : -edge - nx;
+        var fade = Math.max(0, Math.min(1, depth * 7));
+        var toward = (nx * litSide + 1) * 0.5;
+        ctx.globalAlpha = (0.22 + toward * 0.62) * (0.45 + fade * 0.55);
+        ctx.beginPath();
+        ctx.arc(px, py, 0.42 + toward * 0.22, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
-    var maria = [
-      { x: 0.15, y: -0.05, rx: 0.28, ry: 0.22 },
-      { x: -0.22, y: 0.18, rx: 0.2, ry: 0.14 },
-      { x: 0.28, y: 0.22, rx: 0.14, ry: 0.1 }
-    ];
-    ctx.fillStyle = "#121116";
-    var m;
-    for (m = 0; m < maria.length; m++) {
-      var mark = maria[m];
-      if (!moonLit(mark.x, mark.y, phase)) continue;
-      ctx.globalAlpha = 0.82;
-      ctx.beginPath();
-      ctx.ellipse(mark.x * radius, mark.y * radius, mark.rx * radius, mark.ry * radius, 0.4, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.fillStyle = "#16141a";
+    ctx.globalAlpha = 0.5;
+    if (moonLit(-0.18, -0.16, phase)) {
+      shadeBlob(ctx, radius, -0.22, -0.18, [[0.2, 0.13, -0.35]]);
+      shadeBlob(ctx, radius, -0.06, -0.08, [[0.09, 0.07, 0.4]]);
+      shadeBlob(ctx, radius, -0.32, -0.06, [[0.07, 0.06, 0.1]]);
+    }
+    if (moonLit(0.1, -0.2, phase)) {
+      shadeBlob(ctx, radius, 0.08, -0.22, [[0.11, 0.1, 0.25]]);
+      shadeBlob(ctx, radius, 0.16, -0.1, [[0.06, 0.05, -0.5]]);
+    }
+    if (moonLit(0.28, 0.04, phase)) {
+      shadeBlob(ctx, radius, 0.3, 0.02, [[0.14, 0.08, 0.2]]);
+      shadeBlob(ctx, radius, 0.18, 0.1, [[0.07, 0.05, -0.3]]);
     }
     ctx.restore();
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.15;
-    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 1.05;
+    ctx.globalAlpha = 0.92;
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.stroke();
-    var limb = Math.cos(phase * Math.PI * 2);
-    if (Math.abs(limb) > 0.08) {
-      ctx.globalAlpha = 0.7;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, Math.max(0.8, Math.abs(limb) * radius), radius - 0.4, 0, -Math.PI / 2, Math.PI / 2);
-      ctx.stroke();
-    }
     ctx.restore();
+  }
+
+  function placeMoon(mp, w, groundY) {
+    var nice = { x: w * 0.8, y: Math.max(46, groundY * 0.15) };
+    if (!mp) return nice;
+    var high = mp.y > 30 && mp.y < groundY * 0.3;
+    var right = mp.x > w * 0.64 && mp.x < w * 0.9;
+    if (high && right) return mp;
+    return nice;
   }
 
   function paint(ctx, w, h, groundY, now, hideCaption) {
     var ms = now || Date.now();
     var lst = lstDegrees(ms);
     var i;
-    ctx.fillStyle = INK;
-    for (i = 0; i < STARS.length; i++) {
-      var star = STARS[i];
-      var pos = altAz(star[0], star[1], lst);
-      var p = project(pos.alt, pos.az, w, groundY);
-      if (!p || p.y < 18 || p.y > groundY - 8 || p.x < 6 || p.x > w - 6) continue;
-      var mag = star[2];
-      var r = mag < 0 ? 2.5 : mag < 0.5 ? 2.05 : mag < 1.3 ? 1.55 : 1.1;
-      ctx.globalAlpha = mag < 0.5 ? 0.9 : mag < 1.3 ? 0.72 : 0.5;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
     var eq = moonEquatorial(ms);
     var moonPos = altAz(eq.raHours, eq.dec, lst);
-    var mp = project(moonPos.alt, moonPos.az, w, groundY);
     var phase = moonAge(ms) / 29.530588853;
-    var moon = null;
-    if (mp && mp.y > 28 && mp.y < groundY - 36) {
-      var radius = Math.max(11, Math.min(14, w * 0.01));
-      drawMoon(ctx, mp.x, mp.y, radius, phase);
-      moon = { x: mp.x, y: mp.y, r: radius };
+    var placed = placeMoon(project(moonPos.alt, moonPos.az, w, groundY), w, groundY);
+    var radius = Math.max(12, Math.min(15, w * 0.011));
+    var moon = { x: placed.x, y: placed.y, r: radius };
+    ctx.fillStyle = INK;
+    var shown = 0;
+    function drawStar(star) {
+      if (shown > 230) return;
+      var pos = altAz(star[0], star[1], lst);
+      var p = project(pos.alt, pos.az, w, groundY);
+      if (!p || p.y < 16 || p.y > groundY - 10 || p.x < 8 || p.x > w - 8) return;
+      if (Math.hypot(p.x - moon.x, p.y - moon.y) < moon.r + 6) return;
+      var mag = star[2];
+      var dot = mag < 0.2 ? 1.7 : mag < 1 ? 1.25 : mag < 2 ? 0.95 : mag < 3.2 ? 0.72 : 0.55;
+      ctx.globalAlpha = mag < 0.2 ? 0.96 : mag < 1 ? 0.84 : mag < 2 ? 0.68 : mag < 3.2 ? 0.5 : 0.38;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, dot, 0, Math.PI * 2);
+      ctx.fill();
+      shown += 1;
     }
+    for (i = 0; i < STARS.length; i++) drawStar(STARS[i]);
+    for (i = 0; i < FIELD.length; i++) drawStar(FIELD[i]);
+    drawMoon(ctx, moon.x, moon.y, moon.r, phase);
     if (!hideCaption) {
       ctx.globalAlpha = 0.62;
       ctx.fillStyle = INK;

@@ -2983,35 +2983,67 @@
     ctx.restore();
   }
 
-  function beamPackets(ctx, x0, y0, x1, y1, t, seed, alpha, gate) {
+  function beamPackets(ctx, x0, y0, x1, y1, t, seed, alpha, gate, bounds) {
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
     ctx.lineWidth = 1.1;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "butt";
+    var gx = mix(x0, x1, 0.28);
+    var gy = mix(y0, y1, 0.28);
+    var box = null;
+    var textX = 0;
+    var textY = 0;
+    var gateLabel = "encrypted, end to end";
+    if (gate) {
+      ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
+      var gateW = ctx.measureText(gateLabel).width;
+      var gap = 9;
+      textX = gx + 7 + gap;
+      textY = gy + 3;
+      if (bounds && textX + gateW > bounds.r - 2) textX = gx - 7 - gap - gateW;
+      if (bounds) {
+        textX = Math.max(bounds.l, Math.min(textX, bounds.r - gateW));
+        textY = Math.max(bounds.t + 8, Math.min(textY, bounds.b));
+      }
+      box = { x: textX - 8, y: textY - 12, w: gateW + 16, h: 18 };
+    }
+    function blocked(x, y) {
+      if (gate && Math.hypot(x - gx, y - gy) < 10) return true;
+      return !!(box && x >= box.x && x <= box.x + box.w && y >= box.y && y <= box.y + box.h);
+    }
     ctx.globalAlpha = 0.28 * alpha;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
+    var drawing = false;
+    var steps = 36;
+    var s;
+    for (s = 0; s <= steps; s++) {
+      var u = s / steps;
+      var x = mix(x0, x1, u);
+      var y = mix(y0, y1, u);
+      if (blocked(x, y)) {
+        if (drawing) { ctx.stroke(); drawing = false; }
+      } else if (!drawing) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        drawing = true;
+      } else ctx.lineTo(x, y);
+    }
+    if (drawing) ctx.stroke();
     var i;
     for (i = 0; i < 3; i++) {
-      var u = fract((t * 0.28) + seed + i * 0.33);
-      ctx.globalAlpha = (0.35 + 0.55 * (1 - Math.abs(u - 0.5) * 1.2)) * alpha;
+      var pu = fract((t * 0.28) + seed + i * 0.33);
+      var px = mix(x0, x1, pu);
+      var py = mix(y0, y1, pu);
+      if (blocked(px, py)) continue;
+      ctx.globalAlpha = (0.35 + 0.55 * (1 - Math.abs(pu - 0.5) * 1.2)) * alpha;
       ctx.beginPath();
-      ctx.arc(mix(x0, x1, u), mix(y0, y1, u), 1.15, 0, Math.PI * 2);
+      ctx.arc(px, py, 1.15, 0, Math.PI * 2);
       ctx.fill();
     }
     if (gate) {
-      var gx = mix(x0, x1, 0.28);
-      var gy = mix(y0, y1, 0.28);
-      var dx = x1 - x0;
-      var dy = y1 - y0;
-      var len = Math.hypot(dx, dy) || 1;
-      var nx = -dy / len;
-      var ny = dx / len;
-      if (ny > 0) { nx = -nx; ny = -ny; }
       ctx.globalAlpha = 0.92 * alpha;
-      ctx.fillStyle = SKY;
+      ctx.fillStyle = "#12161e";
       ctx.strokeStyle = INK;
       ctx.lineWidth = 1.15;
       ctx.beginPath();
@@ -3022,12 +3054,10 @@
       ctx.beginPath();
       ctx.arc(gx, gy - 0.4, 1.05, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha = 0.8 * alpha;
+      ctx.globalAlpha = 0.88 * alpha;
       ctx.fillStyle = INK;
       ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
-      var gateLabel = "encrypted, end to end";
-      var gateW = ctx.measureText(gateLabel).width;
-      ctx.fillText(gateLabel, gx + nx * 22 - gateW / 2, gy + ny * 22);
+      ctx.fillText(gateLabel, textX, textY);
     }
     ctx.restore();
   }
@@ -3090,68 +3120,84 @@
       ctx.fill();
       ctx.stroke();
     }
+    ctx.fillStyle = "#12161e";
     shape([
-      [L * 0.5, 0],
-      [L * 0.42, -r * 0.55],
-      [L * 0.32, -r],
-      [-L * 0.38, -r],
-      [-L * 0.46, -r * 0.35],
-      [-L * 0.5, 0],
-      [-L * 0.46, r * 0.45],
-      [-L * 0.38, r],
+      [L * 0.1, 0.42 * r],
+      [-L * 0.02, 1.95 * r],
+      [-L * 0.16, 3.05 * r],
+      [-L * 0.3, 2.5 * r],
+      [-L * 0.08, 0.75 * r]
+    ]);
+    shape([
+      [-L * 0.16, -0.15 * r],
+      [-L * 0.33, -4.2 * r],
+      [-L * 0.40, -4.08 * r],
+      [-L * 0.40, -0.05 * r]
+    ]);
+    shape([
+      [L * 0.25, 1.28 * r],
+      [L * 0.29, 1.5 * r],
+      [L * 0.29, 1.82 * r],
+      [L * 0.25, 2.0 * r],
+      [L * 0.1, 2.0 * r],
+      [L * 0.045, 1.7 * r],
+      [L * 0.04, 1.38 * r],
+      [L * 0.12, 1.16 * r]
+    ]);
+    ctx.beginPath();
+    ctx.moveTo(L * 0.265, 1.46 * r);
+    ctx.lineTo(L * 0.265, 1.92 * r);
+    ctx.moveTo(L * 0.03, 1.32 * r);
+    ctx.lineTo(-L * 0.015, 1.85 * r);
+    ctx.stroke();
+    shape([
+      [L * 0.50, 0.05 * r],
+      [L * 0.455, -0.38 * r],
+      [L * 0.40, -0.78 * r],
+      [L * 0.33, -r],
+      [-L * 0.30, -r],
+      [-L * 0.37, -0.72 * r],
+      [-L * 0.43, -0.28 * r],
+      [-L * 0.475, -0.22 * r],
+      [-L * 0.43, 0.22 * r],
+      [-L * 0.36, 0.72 * r],
+      [-L * 0.26, r],
       [L * 0.32, r],
-      [L * 0.42, r * 0.55]
-    ]);
-    shape([
-      [L * 0.06, r * 0.35],
-      [-L * 0.02, r * 0.45],
-      [-L * 0.22, r * 2.5],
-      [-L * 0.16, r * 2.85],
-      [-L * 0.1, r * 2.15],
-      [L * 0.02, r * 0.7]
-    ]);
-    shape([
-      [-L * 0.2, r * 2.35],
-      [-L * 0.14, r * 2.05],
-      [-L * 0.12, r * 2.7],
-      [-L * 0.2, r * 2.85]
+      [L * 0.41, 0.55 * r],
+      [L * 0.46, 0.18 * r]
     ]);
     ctx.beginPath();
-    ctx.ellipse(-L * 0.08, r * 2.15, r * 0.95, r * 0.62, -0.2, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(-L * 0.40, -0.32 * r);
+    ctx.lineTo(-L * 0.53, -0.62 * r);
+    ctx.lineTo(-L * 0.505, -0.98 * r);
+    ctx.lineTo(-L * 0.385, -0.58 * r);
+    ctx.closePath();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(-L * 0.05, r * 0.85);
-    ctx.lineTo(-L * 0.08, r * 1.55);
-    ctx.stroke();
-    shape([
-      [-L * 0.3, -r * 0.15],
-      [-L * 0.4, -r * 3.4],
-      [-L * 0.34, -r * 3.15],
-      [-L * 0.24, -r * 0.1]
-    ]);
-    shape([
-      [-L * 0.32, r * 0.1],
-      [-L * 0.48, r * 1.15],
-      [-L * 0.36, r * 0.45]
-    ]);
-    ctx.beginPath();
-    ctx.arc(-L * 0.5, r * 0.15, 1.3, 0, Math.PI * 2);
+    ctx.moveTo(L * 0.408, -0.32 * r);
+    ctx.lineTo(L * 0.348, -0.70 * r);
+    ctx.lineTo(L * 0.332, -0.52 * r);
+    ctx.lineTo(L * 0.386, -0.16 * r);
+    ctx.closePath();
+    ctx.moveTo(L * 0.372, -0.50 * r);
+    ctx.lineTo(L * 0.358, -0.34 * r);
     ctx.stroke();
     var win;
     ctx.fillStyle = INK;
-    for (win = 0; win < 18; win++) ctx.fillRect(L * 0.22 - win * L * 0.028, -r * 0.12, 2.2, 1.7);
-    ctx.strokeRect(L * 0.34, -r * 0.72, 7, 3.4);
-    ctx.strokeRect(L * 0.36, -r * 0.15, 2.4, 1.6);
-    ctx.strokeRect(L * 0.2, -r * 0.15, 3.2, r * 1.15);
-    ctx.strokeRect(-L * 0.22, -r * 0.15, 3.2, r * 1.15);
+    for (win = 0; win < 16; win++) {
+      var wx = L * 0.24 - win * L * 0.026;
+      if (Math.abs(wx - L * 0.27) < L * 0.02) continue;
+      if (Math.abs(wx + L * 0.16) < L * 0.02) continue;
+      ctx.fillRect(wx, -r * 0.22, 2.1, 1.6);
+    }
+    ctx.strokeRect(L * 0.255, -r * 0.62, L * 0.018, r * 1.15);
+    ctx.strokeRect(-L * 0.175, -r * 0.62, L * 0.018, r * 1.15);
+    ctx.strokeRect(L * 0.02, -r * 0.28, L * 0.012, r * 0.55);
     ctx.beginPath();
-    ctx.ellipse(L * 0.08, -r - 2.4, L * 0.055, 2.6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = SKY;
-    ctx.fill();
+    ctx.ellipse(L * 0.14, -r, L * 0.042, 2.5, 0, 0, Math.PI, true);
     ctx.stroke();
     ctx.restore();
-    var dome = worldPoint(L * 0.08, -r - 2.4);
+    var dome = worldPoint(L * 0.14, -r - 1.2);
     var sat = { x: panelX + panelW * 0.5, y: panelY + 18 };
     ctx.save();
     ctx.strokeStyle = INK;
@@ -3179,7 +3225,12 @@
       ctx.fillText(lines[li], panelX + 10, baseY - (lines.length - 1 - li) * (labelSize + 3));
     }
     ctx.restore();
-    beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade, true);
+    beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade, true, {
+      l: panelX + 8,
+      r: panelX + panelW - 8,
+      t: panelY + 8,
+      b: panelY + panelH - 34
+    });
     if (!cards) return;
     var linked = [];
     var i;
@@ -3238,7 +3289,12 @@
     ctx.strokeRect(sat.x + 7, sat.y - 1, 7, 3);
     var dish = { x: houseX + 68 * s, y: groundY - 16 * s };
     ctx.restore();
-    beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade, true);
+    beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade, true, {
+      l: panelX + 8,
+      r: panelX + panelW - 8,
+      t: panelY + 22,
+      b: groundY - 18
+    });
   }
 
   function drawShadow(ctx, cam) {
