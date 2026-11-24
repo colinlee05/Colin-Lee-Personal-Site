@@ -879,25 +879,10 @@
     ctx.fillStyle = hz;
     ctx.fillRect(0, geo.base - 50, w, 90);
 
-    const ox = reduce ? 0 : mouse.x * 10;
-    const oy = reduce ? 0 : mouse.y * 6;
-    const t = now * 0.001;
-    ctx.fillStyle = INK;
-    for (let i = 0; i < stars.length; i++) {
-      const s = stars[i];
-      let x = s.x + ox;
-      let y = s.y + oy;
-      if (x < 0) x += w;
-      else if (x > w) x -= w;
-      const tw = reduce ? 0.8 : 0.42 + 0.58 * (0.5 + 0.5 * Math.sin(t * s.spd + s.ph));
-      ctx.globalAlpha = s.a * tw;
-      ctx.fillRect(x, y, s.r, s.r);
-      if (s.r > 1.6) {
-        ctx.globalAlpha *= 0.45;
-        ctx.fillRect(x - 2.5, y + s.r * 0.3, 1, 1);
-        ctx.fillRect(x + s.r + 1.5, y + s.r * 0.3, 1, 1);
-      }
+    if (window.BatonRougeSky && geo) {
+      window.BatonRougeSky.paint(ctx, w, h, geo.base, Date.now(), html.classList.contains("mission"));
     }
+    ctx.globalAlpha = 1;
   }
 
   function drawScreen(now) {
@@ -1353,6 +1338,7 @@
     x: "https://twitter.com/colinlee05",
     ig: "https://instagram.com/colinlee.05",
     in: "https://www.linkedin.com/in/colinlee05",
+    gh: "https://github.com/colinlee05",
   };
 
   function say(text) {
@@ -1381,27 +1367,59 @@
   const COMMANDS = {
     help: function () {
       return [
-        "help        list commands",
-        "whoami      short bio",
-        "status      where things stand",
-        "ls          sections",
-        "open <name> open a section",
-        "resume      open the pdf",
-        "launch      light the engines",
-        "vexel       the beta app",
-        "social      where to find me",
-        "geaux       a fun fact",
+        "help          list commands",
+        "whoami        short bio",
+        "ls projects   what I'm building",
+        "cat resume    link to resume.pdf",
+        "certs         in progress, and coursework",
+        "contact       GitHub and LinkedIn",
+        "launch        replay the mission",
         "clear",
+        "open <name>   open a section",
       ].join("\n");
     },
     whoami: function () {
-      return "Colin Lee — LSU senior, Information Systems & Analytics (Cyber Risk), Computer Science minor. Geaux Tigers.";
+      return "Colin Lee. LSU senior, Information Systems and Analytics, cyber risk focus, computer science minor. New Orleans. Geaux Tigers.";
     },
     status: function () {
       return "Currently: LSU Senior · Cyber Risk focus\nExpected graduation: Spring 2027 · GPA 3.8";
     },
-    ls: function () {
+    ls: function (arg) {
+      if ((arg || "").toLowerCase() === "projects") {
+        return "vexel     full-stack web app, live in beta\npassword  strength analyzer, runs in the browser";
+      }
       return "about  education  certifications  projects  skills\nexperience  updates  publications  resources  social  contact";
+    },
+    cat: function (arg) {
+      if ((arg || "").toLowerCase() !== "resume") return "try: cat resume";
+      const block = document.createElement("div");
+      const a = document.createElement("a");
+      a.href = "resume.pdf";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "resume.pdf";
+      block.appendChild(a);
+      termLog.appendChild(block);
+      termLog.scrollTop = termLog.scrollHeight;
+      return "";
+    },
+    certs: function () {
+      return [
+        "In progress, not yet held:",
+        "  SAFe Scrum Master (Scaled Agile)",
+        "  CompTIA Network+",
+        "  AWS Certified Cloud Practitioner",
+        "Coursework, not certifications held:",
+        "  CISA material, ISDS 4096",
+        "  CISSP material, ISDS 4070",
+      ].join("\n");
+    },
+    contact: function () {
+      say("GitHub");
+      sayLink("  ", "gh");
+      say("LinkedIn");
+      sayLink("  ", "in");
+      return "";
     },
     open: function (arg) {
       const id = ALIAS[(arg || "").toLowerCase()];
@@ -1414,8 +1432,9 @@
       return "opening resume.pdf";
     },
     launch: function () {
+      if (model && window.Vehicle && Vehicle.active(model)) Vehicle.stop(model);
       ignite();
-      return reduce ? "motion reduced — the stack stays on the pad." : "ignition.";
+      return reduce ? "motion reduced — the stack stays on the pad." : "launching.";
     },
     vexel: function () {
       say("Full-stack web app, live in beta.");
@@ -1618,6 +1637,55 @@
 
   /* ---------- boot ---------- */
 
+  window.LiveFlight = { flight: null };
+
+  function rememberFlight(flight) {
+    window.LiveFlight.flight = flight;
+    try {
+      sessionStorage.setItem("live-flight", JSON.stringify({ at: Date.now(), flight: flight }));
+    } catch (err) { /* private mode */ }
+  }
+
+  function placeName(lat, lon) {
+    if (typeof lat !== "number" || typeof lon !== "number") return "";
+    var ns = lat >= 0 ? "N" : "S";
+    var ew = lon >= 0 ? "E" : "W";
+    return Math.abs(lat).toFixed(1) + ns + " " + Math.abs(lon).toFixed(1) + ew;
+  }
+
+  function loadLiveFlight() {
+    try {
+      var cached = JSON.parse(sessionStorage.getItem("live-flight") || "null");
+      if (cached && cached.flight && cached.flight.callsign && Date.now() - cached.at < 90000) {
+        window.LiveFlight.flight = cached.flight;
+        return;
+      }
+    } catch (err) { /* ignore a bad cache */ }
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 3500);
+    fetch("/api/flight", { signal: ctrl.signal })
+      .then(function (res) {
+        if (!res.ok) throw new Error("status");
+        return res.json();
+      })
+      .then(function (data) {
+        if (!data || !data.callsign || data.alt_ft == null) return;
+        var alt = Number(data.alt_ft);
+        if (!isFinite(alt)) return;
+        var where = placeName(Number(data.lat), Number(data.lon));
+        rememberFlight({
+          callsign: String(data.callsign),
+          altFt: alt,
+          lat: Number(data.lat),
+          lon: Number(data.lon),
+          line1: "Live: " + String(data.callsign) + " at " + alt.toLocaleString("en-US") + " ft",
+          line2: (where ? "near " + where + " · " : "") + "Starlink-equipped airline"
+        });
+      })
+      .catch(function () { /* the inset keeps its generic caption */ })
+      .then(function () { clearTimeout(timer); });
+  }
+
   function boot() {
     try {
       grain = makeGrain();
@@ -1631,6 +1699,7 @@
       dossier.setAttribute("aria-hidden", "true");
       const id = location.hash.slice(1);
       rebuild();
+      loadLiveFlight();
       if (id && document.getElementById(id)) openPanel(id, { silent: true });
       if (!reduce) startLoop();
       else draw(performance.now());
