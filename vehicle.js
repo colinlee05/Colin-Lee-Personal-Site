@@ -1163,6 +1163,23 @@
       lookX: mix(28, CATCH2_X, tighten),
       lookY: mix(ly * 0.42 + 80, 86, tighten)
     };
+    var groundScreen = pose.landCam.oy + pose.landCam.lookY * pose.landCam.scale;
+    var navClear = model.h - 156;
+    if (groundScreen > navClear) {
+      var shipScreen = pose.landCam.oy - (ly - pose.landCam.lookY) * pose.landCam.scale;
+      var need = groundScreen - navClear;
+      var room = Math.max(0, shipScreen - 64);
+      pose.landCam.oy -= Math.min(need, room);
+      if (need > room) {
+        var shipNow = shipScreen - room;
+        var worldSpan = (navClear + (need - room)) - shipNow;
+        if (worldSpan > 40) {
+          pose.landCam.scale = Math.max(1.15, pose.landCam.scale * ((navClear - shipNow) / worldSpan));
+          pose.landCam.oy = shipNow + (ly - pose.landCam.lookY) * pose.landCam.scale;
+          pose.landCam.oy -= (pose.landCam.oy + pose.landCam.lookY * pose.landCam.scale) - navClear;
+        }
+      }
+    }
     pose.shipIn = 1;
     pose.depart = 1 - ramp(t, 29.2, 29.9);
     pose.padFade = 1 - ramp(t, 29.5, 30.2);
@@ -1354,7 +1371,7 @@
   function drawCoast(ctx, model, cam) {
     if (!cam || cam.scale < model.cam0.scale * 0.42) return;
     var ground = coastSpot(cam, 0, 0);
-    if (ground.y < 36 || ground.y > model.h - 8) return;
+    if (ground.y < 36 || ground.y > model.h - 108) return;
     var s = Math.max(0.42, Math.min(1, cam.scale / model.cam0.scale));
     var cramped = model.cramped;
     ctx.save();
@@ -1377,32 +1394,38 @@
       }
     }
     if (cramped) {
-      var towerP = project({ x: model.towerX, y: 0, z: 0 }, cam);
+      var tankRight = project({ x: -30.4, y: 0, z: -16 }, cam).x;
+      var towerLeft = project({ x: model.towerX - 5, y: 0, z: 0 }, cam).x;
       ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
       ctx.fillStyle = INK;
-      if (towerP.x > 88) {
+      var homeX = (tankRight + towerLeft) / 2;
+      if (towerLeft - tankRight > 22) {
         ctx.globalAlpha = 0.9;
-        drawHome(ctx, 30, ground.y, 0.48);
-        drawDish(ctx, 52, ground.y, 0.48);
-        ctx.globalAlpha = 0.85;
-        ctx.fillText("New Orleans", 8, ground.y - 18);
+        drawHome(ctx, homeX, ground.y, 0.28);
+        ctx.globalAlpha = 0.95;
+        var homeW = ctx.measureText("Home").width;
+        ctx.fillText("Home", Math.max(4, homeX - homeW / 2), ground.y - 30);
       }
-      var shipEdge = project({ x: 12, y: 0, z: 0 }, cam);
-      if (shipEdge.x + 64 < model.w - 36) {
-        ctx.globalAlpha = 0.88;
-        drawStadium(ctx, shipEdge.x + 28, ground.y, 0.4);
-        ctx.globalAlpha = 0.85;
-        ctx.fillText("LSU", shipEdge.x + 16, ground.y - 20);
-      }
+      var comp = model.ui && model.ui.comp;
       var padBX = model.w - 16;
+      var gapL = comp ? comp.x + comp.w + 8 : padBX - 40;
+      var gapR = padBX - 14;
+      if (gapR - gapL > 22) {
+        var stadX = (gapL + gapR) / 2;
+        ctx.globalAlpha = 0.88;
+        drawStadium(ctx, stadX, ground.y, 0.22);
+        ctx.globalAlpha = 0.95;
+        var lsuW = ctx.measureText("LSU").width;
+        ctx.fillText("LSU", stadX - lsuW / 2, ground.y - 28);
+      }
       ctx.globalAlpha = 0.7;
-      ctx.strokeRect(padBX - 4, ground.y - 44, 6, 44);
+      ctx.strokeRect(padBX - 3, ground.y - 36, 5, 36);
       ctx.beginPath();
-      ctx.moveTo(padBX - 2, ground.y - 24);
-      ctx.lineTo(padBX + 7, ground.y - 20);
+      ctx.moveTo(padBX - 1, ground.y - 20);
+      ctx.lineTo(padBX + 6, ground.y - 16);
       ctx.stroke();
-      ctx.globalAlpha = 0.8;
-      ctx.fillText("Pad B", padBX - 28, ground.y - 50);
+      ctx.globalAlpha = 0.9;
+      ctx.fillText("Pad B", Math.min(padBX - 4, model.w - 32), ground.y - 44);
     } else {
       site(-580, drawHome, "Home, New Orleans", 84);
       site(-500, drawDish, "", 0);
@@ -1528,6 +1551,11 @@
     var t = pose.t || 0;
     drawHorizon(ctx, cam, model);
     drawCoast(ctx, model, cam);
+    var bPowEarly = pose.booster.plume != null ? pose.booster.plume : pose.booster.thrust;
+    var engineY = xform({ x: 0, y: 1.2, z: 0 }, pose.booster).y;
+    if (bPowEarly > 0.35 && Math.abs(pose.booster.rot || 0) < 22 && engineY > 8 && engineY < 52) {
+      drawLiftoffColumn(ctx, cam, pose.booster, bPowEarly, t);
+    }
     strokeAll(ctx, model.pad, null, cam, 1);
     strokeAll(ctx, model.tower, null, cam, 1);
     if (!model.cramped) {
@@ -1544,8 +1572,9 @@
     }
     if (pose.shock > 0.04) drawShock(ctx, cam, pose, pose.shock);
     var bPow = pose.booster.plume != null ? pose.booster.plume : pose.booster.thrust;
+    var liftoffColumn = bPow > 0.35 && Math.abs(pose.booster.rot || 0) < 22 && engineY > 8 && engineY < 52;
     var sPow = pose.ship.plume != null ? pose.ship.plume : pose.ship.thrust;
-    if (bPow > 0.04) {
+    if (bPow > 0.04 && !liftoffColumn) {
       var bells = pose.booster.bells || 3;
       drawPlume(ctx, cam, pose.booster, 1.05, bPow, t, 10);
       drawCore(ctx, cam, pose.booster, 1.15, bells > 3 ? 3.4 : 0.72, bPow, bells);
@@ -1649,6 +1678,21 @@
       upper.push(uP);
       lower.push(lP);
     }
+    var measured = 0;
+    for (i = 0; i <= steps; i++) {
+      measured += Math.hypot(upper[i].x - lower[i].x, upper[i].y - lower[i].y);
+    }
+    measured /= (steps + 1);
+    var targetW = al / 5.5;
+    if (measured > 0.5 && measured < targetW * 0.82) {
+      var grow = targetW / measured;
+      for (i = 0; i <= steps; i++) {
+        var mx = (upper[i].x + lower[i].x) * 0.5;
+        var my = (upper[i].y + lower[i].y) * 0.5;
+        upper[i] = { x: mx + (upper[i].x - mx) * grow, y: my + (upper[i].y - my) * grow };
+        lower[i] = { x: mx + (lower[i].x - mx) * grow, y: my + (lower[i].y - my) * grow };
+      }
+    }
     ctx.beginPath();
     ctx.moveTo(lower[0].x, lower[0].y);
     for (i = 1; i <= steps; i++) ctx.lineTo(lower[i].x, lower[i].y);
@@ -1700,9 +1744,21 @@
       ctx.globalAlpha = alpha;
       ctx.stroke();
     }
-    var dia = Math.hypot(nose.x - tail.x, nose.y - tail.y) / 5.6;
-    flap(0.78, dia * 0.55, dia * 0.7);
-    flap(0.22, dia * 1.15, dia * 1.25);
+    var dia = Math.hypot(nose.x - tail.x, nose.y - tail.y) / 5.5;
+    flap(0.8, dia * 0.42, dia * 0.95);
+    flap(0.72, dia * 0.3, dia * 0.55);
+    flap(0.26, dia * 0.95, dia * 1.45);
+    flap(0.14, dia * 0.7, dia * 0.85);
+    ctx.fillStyle = INK;
+    var bi;
+    for (bi = 0; bi < 28; bi++) {
+      var u = 0.12 + (bi / 27) * 0.7;
+      var bx = tail.x + (nose.x - tail.x) * u;
+      var by = tail.y + (nose.y - tail.y) * u;
+      var off = dia * (0.55 + (bi % 4) * 0.08);
+      ctx.globalAlpha = alpha * (0.35 + (bi % 3) * 0.15);
+      ctx.fillRect(bx - lx * off, by - ly * off, 2.2, 2.2);
+    }
   }
 
   function drawFlapShape(ctx, flap, pose, cam, alpha) {
@@ -1910,6 +1966,48 @@
         { a: { x: x, y: y0 + 2.4, z: z }, b: { x: x + Math.cos(a) * out, y: y0 + 2.4 + open * 1.2, z: z + Math.sin(a) * out }, alpha: 0.9, w: 1.3 },
         { a: { x: x - 0.35, y: y0 + 0.3, z: z }, b: { x: x + 0.35, y: y0 + 0.3, z: z }, alpha: 0.7, w: 1.2 }
       ], null, cam, 1);
+    }
+  }
+
+  function drawLiftoffColumn(ctx, cam, pose, power, t) {
+    var origin = xform({ x: 0, y: 1.2, z: 0 }, pose);
+    var row;
+    var col;
+    ctx.fillStyle = INK;
+    var rows = 26;
+    var cols = 13;
+    for (row = 0; row < rows; row++) {
+      var u = row / (rows - 1);
+      var half = R * (1.05 + u * 2.4);
+      var y = origin.y + (0.35 - origin.y) * Math.pow(u, 0.72);
+      for (col = 0; col < cols; col++) {
+        var side = (col / (cols - 1) - 0.5) * 2 * half;
+        side += (hash(row * 17 + col) - 0.5) * half * 0.16;
+        var depth = (hash(row * 13 + col + 4) - 0.5) * half * 0.45;
+        var p = project({ x: origin.x + side, y: y, z: depth }, cam);
+        ctx.globalAlpha = (0.55 + 0.4 * (1 - u)) * power;
+        var s = u > 0.55 ? 5.4 : 3.6;
+        ctx.fillRect(p.x - s * 0.35, p.y - s * 0.35, s, s);
+      }
+    }
+    var sideSign;
+    for (sideSign = -1; sideSign <= 1; sideSign += 2) {
+      var along;
+      var layer;
+      for (along = 0; along < 12; along++) {
+        for (layer = 0; layer < 5; layer++) {
+          var drift = fract(hash(along * 9 + layer + 3) + t * 0.18);
+          var x = sideSign * (9 + along * 2.5 + (hash(along + layer) - 0.5) * 1.6);
+          var y2 = 0.25 + layer * 0.85 + drift * 1.4;
+          var p2 = project({
+            x: x,
+            y: y2,
+            z: (hash(along * 5 + layer) - 0.5) * 8
+          }, cam);
+          ctx.globalAlpha = (0.35 + 0.45 * (1 - layer / 5)) * power;
+          ctx.fillRect(p2.x, p2.y, 3.4, 2.4);
+        }
+      }
     }
   }
 
