@@ -1200,14 +1200,13 @@
       for (i = 0; i <= 16; i++) {
         var u = i / 16;
         var r = dia * 0.5;
-        if (u > 0.68) r *= Math.cos(((u - 0.68) / 0.32) * Math.PI / 2);
-        var flap = 0;
-        if (u > 0.64 && u < 0.9) flap = dia * 0.32;
-        if (u < 0.36) flap = Math.max(flap, dia * 0.46);
+        if (u > 0.72) r *= Math.cos(((u - 0.72) / 0.28) * Math.PI / 2);
+        var flap = dia * 0.22;
+        if (u < 0.28) flap = dia * 0.42;
         var x = tail.x + ax * al * u;
         var y = tail.y + ay * al * u;
-        var xs = [x + px * (r + flap), x - px * r];
-        var ys = [y + py * (r + flap), y - py * r];
+        var xs = [x + px * (r + flap), x - px * (r + flap)];
+        var ys = [y + py * (r + flap), y - py * (r + flap)];
         var k;
         for (k = 0; k < 2; k++) {
           if (xs[k] < minX) minX = xs[k];
@@ -1806,9 +1805,8 @@
     var dia = al / 5.5;
     function radiusAt(u) {
       var r = dia * 0.5;
-      if (u > 0.68) r *= Math.cos(((u - 0.68) / 0.32) * Math.PI / 2);
-      else if (u < 0.035) r *= Math.sin((u / 0.035) * Math.PI / 2);
-      return r;
+      if (u > 0.72) r *= Math.cos(((u - 0.72) / 0.28) * Math.PI / 2);
+      return Math.max(0, r);
     }
     function at(u, side) {
       return {
@@ -1818,16 +1816,41 @@
     }
     var steps = 22;
     var i;
+    function sideFlap(u0, u1, overTop, overBot) {
+      var ru0 = radiusAt(u0);
+      var ru1 = radiusAt(u1);
+      var a = at(u0, ru0 + overTop);
+      var b = at(u1, ru1 + overTop * 0.82);
+      var c = at(u1, -(ru1 + overBot * 0.78));
+      var d = at(u0, -(ru0 + overBot));
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.lineTo(d.x, d.y);
+      ctx.closePath();
+      ctx.fillStyle = SKY;
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.2;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+    }
+    sideFlap(0.62, 0.7, dia * 0.16, dia * 0.14);
+    sideFlap(0.68, 0.76, dia * 0.2, dia * 0.17);
+    sideFlap(0.02, 0.12, dia * 0.32, dia * 0.26);
+    sideFlap(0.1, 0.22, dia * 0.4, dia * 0.32);
     ctx.beginPath();
     for (i = steps; i >= 0; i--) {
-      var u = i / steps;
-      var p = at(u, -radiusAt(u));
-      if (i === steps) ctx.moveTo(p.x, p.y);
-      else ctx.lineTo(p.x, p.y);
+      var bu = i / steps;
+      var bp = at(bu, -radiusAt(bu));
+      if (i === steps) ctx.moveTo(bp.x, bp.y);
+      else ctx.lineTo(bp.x, bp.y);
     }
     for (i = 0; i <= steps; i++) {
-      var q = at(i / steps, radiusAt(i / steps));
-      ctx.lineTo(q.x, q.y);
+      var bq = at(i / steps, radiusAt(i / steps));
+      ctx.lineTo(bq.x, bq.y);
     }
     ctx.closePath();
     ctx.fillStyle = SKY;
@@ -1839,29 +1862,22 @@
     ctx.lineCap = "round";
     ctx.globalAlpha = alpha;
     ctx.stroke();
-    function flap(u0, u1, rise) {
-      var a = at(u0, radiusAt(u0) * 0.92);
-      var b = at(u1, radiusAt(u1) * 0.92);
-      var c = at(u1 - (u1 - u0) * 0.18, radiusAt(u1) + rise);
-      var d = at(u0 + (u1 - u0) * 0.22, radiusAt(u0) + rise * 0.72);
+    ctx.beginPath();
+    ctx.moveTo(at(0.015, dia * 0.5).x, at(0.015, dia * 0.5).y);
+    ctx.lineTo(at(-0.04, dia * 0.62).x, at(-0.04, dia * 0.62).y);
+    ctx.lineTo(at(-0.04, -dia * 0.62).x, at(-0.04, -dia * 0.62).y);
+    ctx.lineTo(at(0.015, -dia * 0.5).x, at(0.015, -dia * 0.5).y);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.25;
+    ctx.globalAlpha = alpha;
+    ctx.stroke();
+    var bell;
+    for (bell = -1; bell <= 1; bell++) {
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.lineTo(c.x, c.y);
-      ctx.lineTo(d.x, d.y);
-      ctx.closePath();
-      ctx.fillStyle = SKY;
-      ctx.globalAlpha = alpha;
-      ctx.fill();
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = 1.25;
-      ctx.globalAlpha = alpha;
+      ctx.moveTo(at(0.01, bell * dia * 0.22).x, at(0.01, bell * dia * 0.22).y);
+      ctx.lineTo(at(-0.032, bell * dia * 0.28).x, at(-0.032, bell * dia * 0.28).y);
       ctx.stroke();
     }
-    flap(0.76, 0.86, dia * 0.16);
-    flap(0.68, 0.77, dia * 0.24);
-    flap(0.05, 0.16, dia * 0.3);
-    flap(0.14, 0.28, dia * 0.4);
     ctx.fillStyle = INK;
     for (i = 0; i < 36; i++) {
       var u = 0.1 + (i / 35) * 0.72;
@@ -2104,60 +2120,102 @@
   function drawLiftoffColumn(ctx, cam, pose, power, t) {
     var origin = xform({ x: 0, y: 1.2, z: 0 }, pose);
     var ground = project({ x: cam.lookX || 0, y: 0, z: 0 }, cam);
+    var row;
+    var col;
     var i;
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.05;
+    ctx.lineWidth = 1.1;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    for (i = 0; i < 160; i++) {
-      var u = i / 159;
-      var half = R * (0.55 + u * 0.28);
-      var side = (hash(i + 3) - 0.5) * 2 * half;
-      var y = origin.y + (1.4 - origin.y) * Math.pow(u, 0.9);
-      var p = project({ x: origin.x + side, y: y, z: (hash(i + 9) - 0.5) * half * 0.3 }, cam);
-      roundStipple(ctx, p.x, p.y, 1.15 + hash(i + 11) * 0.7, (0.55 + 0.4 * (1 - u)) * power);
+    var rows = 42;
+    var cols = 16;
+    for (row = 0; row < rows; row++) {
+      var u = row / (rows - 1);
+      var y = origin.y + (0.55 - origin.y) * Math.pow(u, 0.78);
+      var spread = R * (0.98 + u * 0.72);
+      for (col = 0; col < cols; col++) {
+        var side = ((col + 0.5) / cols - 0.5) * 2 * spread;
+        side += (hash(row * 17 + col) - 0.5) * spread * 0.06;
+        var p = project({
+          x: origin.x + side,
+          y: y,
+          z: (hash(row * 3 + col) - 0.5) * 1.1
+        }, cam);
+        var edge = 1 - Math.abs((col + 0.5) / cols - 0.5) * 0.45;
+        roundStipple(ctx, p.x, p.y, 1.45 + (hash(row + col * 5) * 0.55), (0.78 + 0.2 * (1 - u)) * edge * power);
+      }
     }
-    for (i = 0; i < 140; i++) {
-      var u2 = i / 139;
-      var half2 = R * (1.05 + u2 * 1.35);
-      var side2 = (hash(i + 40) - 0.5) * 2 * half2;
-      var y2 = origin.y + (0.8 - origin.y) * Math.pow(u2, 0.75);
-      var p2 = project({ x: origin.x + side2, y: y2, z: (hash(i + 21) - 0.5) * half2 * 0.35 }, cam);
-      roundStipple(ctx, p2.x, p2.y, 0.9 + hash(i + 8) * 0.6, (0.16 + 0.22 * (1 - u2)) * power);
+    var diamond;
+    for (diamond = 0; diamond < 5; diamond++) {
+      var du = 0.1 + diamond * 0.16;
+      var dy = origin.y + (0.7 - origin.y) * du;
+      var center = project({ x: origin.x, y: dy, z: 0 }, cam);
+      var knot;
+      for (knot = 0; knot < 14; knot++) {
+        var ang = (knot / 14) * Math.PI * 2;
+        var rr = R * (0.15 + (knot % 3) * 0.12);
+        var pk = project({
+          x: origin.x + Math.cos(ang) * rr,
+          y: dy + (hash(knot + diamond * 9) - 0.5) * 0.45,
+          z: Math.sin(ang) * rr * 0.25
+        }, cam);
+        roundStipple(ctx, pk.x, pk.y, 1.55, 0.92 * power);
+      }
+      var arm = Math.abs(project({ x: origin.x + R * 0.42, y: dy, z: 0 }, cam).x - center.x);
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y - arm * 0.85);
+      ctx.lineTo(center.x + arm * 0.55, center.y);
+      ctx.lineTo(center.x, center.y + arm * 0.85);
+      ctx.lineTo(center.x - arm * 0.55, center.y);
+      ctx.closePath();
+      ctx.globalAlpha = 0.62 * power;
+      ctx.stroke();
     }
-    var sideSign;
-    for (sideSign = -1; sideSign <= 1; sideSign += 2) {
+    function billow(sign) {
+      var lobes = [
+        { start: 12, reach: 46, rise: 11 },
+        { start: 18, reach: 38, rise: 16 },
+        { start: 26, reach: 30, rise: 8 }
+      ];
       var b;
-      for (b = 0; b < 3; b++) {
-        ctx.beginPath();
-        var n;
-        var first = true;
-        for (n = 0; n <= 7; n++) {
-          var along = 8 + n * 4.2 + b * 1.4;
-          var hump = Math.sin((n / 7) * Math.PI) * (3.2 + b * 1.3);
-          var p3 = project({
-            x: sideSign * along,
-            y: 0.35 + hump,
-            z: (b - 1) * 3
-          }, cam);
-          var yb = Math.min(p3.y, ground.y - 1);
-          if (first) { ctx.moveTo(p3.x, yb); first = false; }
-          else ctx.quadraticCurveTo(p3.x, yb - (4 + b * 3), p3.x, yb);
+      var n;
+      for (b = 0; b < lobes.length; b++) {
+        var spec = lobes[b];
+        var pts = [];
+        for (n = 0; n <= 8; n++) {
+          var tn = n / 8;
+          var along = spec.start + tn * spec.reach;
+          var hump = Math.sin(tn * Math.PI) * spec.rise;
+          var bp = project({ x: sign * along, y: 0.45 + hump, z: (b - 1) * 5 }, cam);
+          pts.push({ x: bp.x, y: Math.min(bp.y, ground.y - 1) });
         }
-        ctx.globalAlpha = (0.42 - b * 0.08) * power;
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, ground.y - 1);
+        ctx.lineTo(pts[0].x, pts[0].y);
+        for (n = 1; n < pts.length; n++) {
+          var midX = (pts[n - 1].x + pts[n].x) * 0.5;
+          var lift = 9 + b * 6;
+          ctx.quadraticCurveTo(midX, Math.min(pts[n - 1].y, pts[n].y) - lift, pts[n].x, pts[n].y);
+        }
+        ctx.lineTo(pts[pts.length - 1].x, ground.y - 1);
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 1.15;
+        ctx.globalAlpha = (0.55 - b * 0.1) * power;
         ctx.stroke();
       }
-      for (i = 0; i < 70; i++) {
-        var along2 = 7 + hash(i + 60) * 28;
-        var puff = hash(i + 90) * 3.2;
-        var p4 = project({
-          x: sideSign * along2,
-          y: 0.3 + puff,
-          z: (hash(i + 14) - 0.5) * 6
+      for (i = 0; i < 110; i++) {
+        var along = 14 + hash(i + (sign < 0 ? 80 : 20)) * 42;
+        var puff = Math.sin(hash(i + 5) * Math.PI) * (5 + hash(i + 12) * 9);
+        var ps = project({
+          x: sign * along,
+          y: 0.4 + puff,
+          z: (hash(i + 2) - 0.5) * 10
         }, cam);
-        roundStipple(ctx, p4.x, Math.min(p4.y, ground.y - 1.5), 0.9 + hash(i + 7) * 0.7, (0.16 + hash(i + 2) * 0.28) * power);
+        roundStipple(ctx, ps.x, Math.min(ps.y, ground.y - 2), 1.15 + hash(i + 6) * 0.85, (0.28 + hash(i + 4) * 0.4) * power);
       }
     }
+    billow(-1);
+    billow(1);
   }
 
   function drawPadCloud(ctx, cam, amount, t) {
