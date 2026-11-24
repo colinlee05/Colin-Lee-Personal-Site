@@ -37,7 +37,7 @@
     contact: "contact",
   };
 
-  const RIDES = { nose: 1, flap: 1, hull: 1, aft: 1, fin: 1, booster: 1 };
+  const RIDES = { ship: 1, nose: 1 };
 
   let ctx;
   let view = { w: 1, h: 1, dpr: 1 };
@@ -732,8 +732,8 @@
     if (!cramped) {
       const whisperH = document.querySelector(".whisper").offsetHeight;
       const top = Math.max(78, geo.yTip - 8);
-      const botL = Math.min(view.h - 48, geo.base - 34);
-      const botR = Math.min(geo.base - 28, view.h - whisperH - 30);
+      const botL = Math.min(view.h - 48, geo.base - 168);
+      const botR = Math.min(geo.base - 150, view.h - whisperH - 36);
       const leftX = geo.leftReach - 18;
       let rightX = Math.max(geo.rightReach, geo.comp.x + geo.comp.w) + 54;
       rightX = Math.min(rightX, view.w - 250);
