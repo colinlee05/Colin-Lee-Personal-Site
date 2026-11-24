@@ -1371,7 +1371,9 @@
       if (label) {
         ctx.globalAlpha = 0.72;
         ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
-        ctx.fillText(label, p.x - 6, p.y - lift);
+        var tw = ctx.measureText(label).width;
+        var tx = label.indexOf("LSU") === 0 ? p.x - tw + 8 : p.x - tw / 2;
+        ctx.fillText(label, tx, p.y - lift);
       }
     }
     if (cramped) {
@@ -1402,7 +1404,7 @@
       ctx.globalAlpha = 0.8;
       ctx.fillText("Pad B", padBX - 28, ground.y - 50);
     } else {
-      site(-580, drawHome, "Home, New Orleans", 58);
+      site(-580, drawHome, "Home, New Orleans", 84);
       site(-500, drawDish, "", 0);
       site(-330, drawStadium, "LSU, Baton Rouge", 72);
       site(-190, drawMemorial, "", 0);
@@ -1412,23 +1414,33 @@
   }
 
   function drawStadium(ctx, x, y, s) {
-    var w = 86 * s;
-    var h = 22 * s;
+    var w = 92 * s;
+    var bowl = 28 * s;
     ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.55, w * 0.5, h, 0, Math.PI, 0);
+    ctx.moveTo(x - w * 0.52, y);
+    ctx.lineTo(x - w * 0.52, y - bowl * 0.72);
+    ctx.quadraticCurveTo(x - w * 0.2, y - bowl * 1.35, x, y - bowl * 0.55);
+    ctx.quadraticCurveTo(x + w * 0.22, y - bowl * 1.55, x + w * 0.52, y - bowl);
+    ctx.lineTo(x + w * 0.52, y);
+    ctx.closePath();
     ctx.stroke();
     ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.85, w * 0.36, h * 0.62, 0, Math.PI, 0);
+    ctx.moveTo(x - w * 0.34, y - 3 * s);
+    ctx.quadraticCurveTo(x, y - bowl * 0.42, x + w * 0.34, y - 4 * s);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.35, w * 0.22, h * 0.28, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.5, y - h * 0.55);
-    ctx.lineTo(x - w * 0.5, y);
-    ctx.lineTo(x + w * 0.5, y);
-    ctx.lineTo(x + w * 0.5, y - h * 0.55);
-    ctx.stroke();
+    ctx.strokeRect(x - w * 0.1, y - bowl * 0.28, w * 0.2, bowl * 0.16);
+    function mast(mx, top) {
+      ctx.beginPath();
+      ctx.moveTo(mx, y);
+      ctx.lineTo(mx, y - top);
+      ctx.moveTo(mx - 5 * s, y - top);
+      ctx.lineTo(mx + 5 * s, y - top);
+      ctx.moveTo(mx - 3 * s, y - top + 3 * s);
+      ctx.lineTo(mx + 3 * s, y - top + 3 * s);
+      ctx.stroke();
+    }
+    mast(x - w * 0.58, bowl * 1.15);
+    mast(x + w * 0.58, bowl * 1.35);
   }
 
   function drawMemorial(ctx, x, y, s) {
@@ -1483,13 +1495,19 @@
   function drawDish(ctx, x, y, s) {
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + 2 * s, y - 8 * s);
-    ctx.moveTo(x - 1 * s, y - 7 * s);
-    ctx.lineTo(x + 12 * s, y - 14 * s);
-    ctx.lineTo(x + 16 * s, y - 11 * s);
-    ctx.lineTo(x + 3 * s, y - 4 * s);
-    ctx.closePath();
+    ctx.lineTo(x + 2 * s, y - 11 * s);
+    ctx.moveTo(x - 3 * s, y);
+    ctx.lineTo(x + 7 * s, y);
     ctx.stroke();
+    ctx.save();
+    ctx.translate(x + 2 * s, y - 12 * s);
+    ctx.rotate(-0.7);
+    ctx.strokeRect(-8 * s, -4.5 * s, 16 * s, 9 * s);
+    ctx.beginPath();
+    ctx.moveTo(-5 * s, -4.5 * s);
+    ctx.lineTo(5 * s, 4.5 * s);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawOffice(ctx, x, y, s) {
@@ -2215,51 +2233,42 @@
     return { x: cx + x * radius, y: cy - y * radius };
   }
 
+  function drawCoastRing(ctx, ring, cx, cy, radius, alpha, fill) {
+    ctx.beginPath();
+    var started = false;
+    var i;
+    var drawn = false;
+    for (i = 0; i < ring.length; i++) {
+      var p = globePoint(ring[i][0], ring[i][1], cx, cy, radius);
+      if (!p) { started = false; continue; }
+      if (!started) { ctx.moveTo(p.x, p.y); started = true; drawn = true; }
+      else ctx.lineTo(p.x, p.y);
+    }
+    if (!drawn) return;
+    ctx.closePath();
+    if (fill) {
+      ctx.globalAlpha = 0.16 * alpha;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 0.9 * alpha;
+    ctx.stroke();
+  }
+
   function drawNorthAmerica(ctx, cx, cy, radius, alpha) {
-    var shapes = [
-      [
-        [49, -125], [46, -124], [40, -124], [34, -121], [32, -117], [31.5, -106],
-        [26, -97.2], [27.8, -97], [29.2, -95],         [29.4, -91], [29.2, -89.2],
-        [30.2, -88.2], [30.1, -86.2], [29.6, -84.2], [28.4, -83.2], [27.2, -82.8],
-        [25.4, -82.2], [24.2, -81.6], [24.7, -80.2], [26.2, -79.6], [28.2, -80.2],
-        [30.2, -81.2], [32, -80.6],
-        [35.2, -75.5], [40.5, -74], [42.3, -70.8], [44.5, -67], [47, -60],
-        [50, -56], [53, -56], [52, -66], [55, -80], [54, -90], [56, -100],
-        [55, -115], [52, -128], [49, -125]
-      ],
-      [
-        [25.9, -97.4], [22, -97.8], [19, -96.1], [18.5, -91], [21.2, -87],
-        [21.5, -86.7], [20, -90.5], [18, -94], [16.5, -99], [20, -105],
-        [23, -106.4], [26, -112], [28, -114], [31, -114.5], [32.2, -117],
-        [31.8, -106.4], [29, -102], [26, -97.4]
-      ]
-    ];
+    var data = global.COAST;
+    if (!data) return;
     ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, radius - 1.5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, radius - 1.2, 0, Math.PI * 2);
     ctx.clip();
     ctx.strokeStyle = INK;
-    ctx.fillStyle = "rgba(244,241,232,0.08)";
-    ctx.lineWidth = 1.25;
+    ctx.fillStyle = "rgba(244,241,232,0.9)";
+    ctx.lineWidth = 1.05;
     ctx.lineJoin = "round";
-    var s;
-    for (s = 0; s < shapes.length; s++) {
-      var coast = shapes[s];
-      ctx.beginPath();
-      var started = false;
-      var i;
-      for (i = 0; i < coast.length; i++) {
-        var p = globePoint(coast[i][0], coast[i][1], cx, cy, radius);
-        if (!p) { started = false; continue; }
-        if (!started) { ctx.moveTo(p.x, p.y); started = true; }
-        else ctx.lineTo(p.x, p.y);
-      }
-      ctx.closePath();
-      ctx.globalAlpha = 1;
-      ctx.fill();
-      ctx.globalAlpha = 0.92 * alpha;
-      ctx.stroke();
-    }
+    var i;
+    for (i = 0; i < data.land.length; i++) drawCoastRing(ctx, data.land[i], cx, cy, radius, alpha, true);
+    ctx.fillStyle = "#10141c";
+    for (i = 0; i < data.lakes.length; i++) drawCoastRing(ctx, data.lakes[i], cx, cy, radius, alpha, true);
     ctx.restore();
   }
 
@@ -2387,7 +2396,10 @@
     ctx.lineTo(lx1, ly1);
     ctx.stroke();
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
-    ctx.fillText("ship", leftSide ? lx1 - 36 : lx1 + 6, ly1 - 4);
+    var outX = sx - cx;
+    var outY = sy - cy;
+    var outL = Math.hypot(outX, outY) || 1;
+    ctx.fillText("ship", sx + outX / outL * 36 - 8, sy + outY / outL * 22);
     var doorP = project(xform({ x: R + 0.45, y: 33.6, z: 0 }, shipPose), shipCam);
     model._shipScreen = { x: sx, y: sy };
     model._cards = cardsFor(pose, model, {
@@ -2398,14 +2410,16 @@
     drawHomeLink(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
     if ((pose.t || 0) > 33 && (pose.t || 0) < 48.6 && (pose.earthAlpha || 0) > 0.35) {
-      var la = globePoint(29.95, -90.07, cx, cy, radius);
-      if (la) {
-        ctx.globalAlpha = 0.95 * pose.earthAlpha;
-        ctx.fillStyle = INK;
-        ctx.fillRect(la.x - 1.6, la.y - 1.6, 3.2, 3.2);
-        ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
-        ctx.fillText("Louisiana", la.x + 6, la.y - 4);
+      var coast = globePoint(30.2, -91.05, cx, cy, radius);
+      var nola = globePoint(29.95, -90.25, cx, cy, radius);
+      ctx.fillStyle = INK;
+      ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
+      ctx.globalAlpha = 0.95 * pose.earthAlpha;
+      if (coast) {
+        ctx.fillRect(coast.x - 1.5, coast.y - 1.5, 3, 3);
+        ctx.fillText("Louisiana", coast.x + 5, coast.y - 6);
       }
+      if (nola) ctx.fillRect(nola.x - 1.2, nola.y - 1.2, 2.4, 2.4);
     }
     ctx.restore();
   }
@@ -2476,12 +2490,13 @@
     for (i = 0; i < out.length; i++) {
       var c = out[i];
       if (i !== latest) continue;
-      var w = 340;
-      var cols = 32;
+      var globeBottom = geo.cy + geo.radius;
+      var w = Math.min(280, Math.max(168, model.w * 0.2));
+      var cols = Math.max(22, Math.floor((w - 20) / 6.6));
       var linesN = Math.max(1, Math.ceil(c.text.length / cols));
-      var h = 22 + linesN * 18;
-      var x = 18;
-      var y = model.cramped ? 78 : 148;
+      var h = 20 + linesN * 17;
+      var x = 16;
+      var y = Math.max(globeBottom + 18, model.h - h - 84);
       x = clamp(x, 10, model.w - w - 10);
       y = clamp(y, 72, model.h - h - 86);
       c.x = x;
@@ -2568,10 +2583,10 @@
     var t = pose.t || 0;
     if (!geo || t < 36.6 || t > 47.7 || (pose.earthAlpha || 0) < 0.08) return;
     var fade = ramp(t, 36.6, 37.3) * (1 - ramp(t, 47.0, 47.65)) * pose.earthAlpha;
-    var panelW = model.cramped ? 210 : 330;
-    var panelH = model.cramped ? 132 : 176;
+    var panelW = model.cramped ? 250 : Math.min(460, model.w * 0.34);
+    var panelH = model.cramped ? 168 : 230;
     var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
-    var panelY = model.cramped ? 96 : 112;
+    var panelY = model.cramped ? 88 : 100;
     ctx.save();
     ctx.globalAlpha = 0.96 * fade;
     ctx.fillStyle = "#12161e";
@@ -2580,12 +2595,22 @@
     ctx.lineWidth = 1.1;
     ctx.globalAlpha = 0.75 * fade;
     ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1);
-    ctx.globalAlpha = 0.28 * fade;
-    ctx.fillRect(panelX + 10, panelY + panelH * 0.78, panelW - 20, 1.2);
+    ctx.globalAlpha = 0.22 * fade;
+    var cloud;
+    for (cloud = 0; cloud < 4; cloud++) {
+      ctx.beginPath();
+      ctx.moveTo(panelX + 12, panelY + panelH * (0.72 + cloud * 0.05));
+      ctx.bezierCurveTo(
+        panelX + panelW * 0.3, panelY + panelH * (0.68 + cloud * 0.04),
+        panelX + panelW * 0.6, panelY + panelH * (0.76 + cloud * 0.03),
+        panelX + panelW - 12, panelY + panelH * (0.71 + cloud * 0.05)
+      );
+      ctx.stroke();
+    }
     ctx.restore();
-    var x = panelX + panelW * 0.56;
-    var y = panelY + panelH * 0.62;
-    var L = model.cramped ? 96 : 150;
+    var x = panelX + panelW * 0.52;
+    var y = panelY + panelH * 0.46;
+    var L = panelW * 0.7;
     var r = L * 0.046;
     var rot = 0;
     function worldPoint(px, py) {
@@ -2613,42 +2638,67 @@
       ctx.stroke();
     }
     shape([
-      [L * 0.5, 0], [L * 0.36, -r], [-L * 0.4, -r], [-L * 0.5, 0],
-      [-L * 0.4, r], [L * 0.36, r]
+      [L * 0.5, 0],
+      [L * 0.42, -r * 0.55],
+      [L * 0.32, -r],
+      [-L * 0.38, -r],
+      [-L * 0.46, -r * 0.35],
+      [-L * 0.5, 0],
+      [-L * 0.46, r * 0.45],
+      [-L * 0.38, r],
+      [L * 0.32, r],
+      [L * 0.42, r * 0.55]
     ]);
     shape([
-      [L * 0.08, r * 0.4], [-L * 0.16, r * 0.55], [-L * 0.34, r * 3.1], [-L * 0.22, r * 3.15], [L * 0.02, r * 0.7]
+      [L * 0.06, r * 0.35],
+      [-L * 0.02, r * 0.45],
+      [-L * 0.22, r * 2.5],
+      [-L * 0.16, r * 2.85],
+      [-L * 0.1, r * 2.15],
+      [L * 0.02, r * 0.7]
     ]);
     shape([
-      [-L * 0.1, r * 2.55], [-L * 0.02, r * 2.15], [-L * 0.02, r * 3.05], [-L * 0.12, r * 3.2]
+      [-L * 0.2, r * 2.35],
+      [-L * 0.14, r * 2.05],
+      [-L * 0.12, r * 2.7],
+      [-L * 0.2, r * 2.85]
     ]);
     ctx.beginPath();
-    ctx.ellipse(-L * 0.12, r * 2.7, r * 0.85, r * 0.62, 0, 0, Math.PI * 2);
+    ctx.ellipse(-L * 0.08, r * 2.15, r * 0.95, r * 0.62, -0.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(-L * 0.12, r * 0.8);
-    ctx.lineTo(-L * 0.12, r * 2.1);
+    ctx.moveTo(-L * 0.05, r * 0.85);
+    ctx.lineTo(-L * 0.08, r * 1.55);
     ctx.stroke();
     shape([
-      [-L * 0.36, -r * 0.2], [-L * 0.5, -r * 3.3], [-L * 0.4, -r * 0.15]
+      [-L * 0.3, -r * 0.15],
+      [-L * 0.4, -r * 3.4],
+      [-L * 0.34, -r * 3.15],
+      [-L * 0.24, -r * 0.1]
     ]);
     shape([
-      [-L * 0.34, r * 0.15], [-L * 0.5, r * 1.5], [-L * 0.38, r * 0.35]
+      [-L * 0.32, r * 0.1],
+      [-L * 0.48, r * 1.15],
+      [-L * 0.36, r * 0.45]
     ]);
+    ctx.beginPath();
+    ctx.arc(-L * 0.5, r * 0.15, 1.3, 0, Math.PI * 2);
+    ctx.stroke();
     var win;
     ctx.fillStyle = INK;
-    for (win = 0; win < 16; win++) ctx.fillRect(L * 0.24 - win * L * 0.034, -r * 0.15, 1.8, 1.5);
-    ctx.strokeRect(L * 0.34, -r * 0.85, 6, 3);
-    ctx.strokeRect(L * 0.22, -r * 0.2, 3, r * 1.15);
-    ctx.strokeRect(-L * 0.18, -r * 0.2, 3, r * 1.15);
+    for (win = 0; win < 18; win++) ctx.fillRect(L * 0.22 - win * L * 0.028, -r * 0.12, 2.2, 1.7);
+    ctx.strokeRect(L * 0.34, -r * 0.72, 7, 3.4);
+    ctx.strokeRect(L * 0.36, -r * 0.15, 2.4, 1.6);
+    ctx.strokeRect(L * 0.2, -r * 0.15, 3.2, r * 1.15);
+    ctx.strokeRect(-L * 0.22, -r * 0.15, 3.2, r * 1.15);
     ctx.beginPath();
-    ctx.ellipse(L * 0.1, -r - 2.2, L * 0.045, 2.3, 0, 0, Math.PI * 2);
+    ctx.ellipse(L * 0.08, -r - 2.4, L * 0.055, 2.6, 0, 0, Math.PI * 2);
     ctx.fillStyle = SKY;
     ctx.fill();
     ctx.stroke();
     ctx.restore();
-    var dome = worldPoint(L * 0.1, -r - 2.2);
+    var dome = worldPoint(L * 0.08, -r - 2.4);
     var sat = { x: panelX + panelW * 0.5, y: panelY + 18 };
     ctx.save();
     ctx.strokeStyle = INK;
@@ -2678,7 +2728,7 @@
     var panelW = model.cramped ? 210 : 330;
     var panelH = model.cramped ? 120 : 150;
     var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
-    var panelY = (model.cramped ? 96 : 112) + (model.cramped ? 144 : 192);
+    var panelY = (model.cramped ? 88 : 100) + (model.cramped ? 168 : 230) + 14;
     if (panelY + panelH > model.h - 70) panelY = model.h - panelH - 78;
     var s = model.cramped ? 0.85 : 1.15;
     var groundY = panelY + panelH - 28;

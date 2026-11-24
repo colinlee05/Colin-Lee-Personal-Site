@@ -729,15 +729,7 @@
       el.style.left = "";
       el.style.right = "";
     });
-    if (!cramped && geo.anchors) {
-      els.forEach(function (el) {
-        const a = geo.anchors[el.dataset.anchor];
-        if (!a) return;
-        const box = labelBox(el.dataset.anchor, a, el.offsetWidth, el.offsetHeight);
-        el.style.left = Math.round(box.x) + "px";
-        el.style.top = Math.round(box.y) + "px";
-      });
-    }
+    if (!cramped && geo.anchors) placeLabels(els);
     measureJoints();
     const lift = shipShift;
     shipHot.style.left = geo.cx - geo.hw - 18 + "px";
@@ -751,22 +743,66 @@
     termHot.style.height = geo.base - geo.comp.y + 10 + "px";
   }
 
-  function labelBox(name, a, w, h) {
-    const spot = {
-      home: { x: a.x - w - 10, y: a.y - h - 8 },
-      dish: { x: a.x + 6, y: a.y - h - 22 },
-      stadium: { x: a.x - w - 18, y: a.y - h - 64 },
-      memorial: { x: a.x - w - 14, y: a.y - h - 36 },
-      office: { x: a.x - w - 12, y: a.y - h - 10 },
-      terminal: { x: a.x + 12, y: a.y - h * 0.5 },
-      keys: { x: a.x + 12, y: a.y + 6 },
-      ship: { x: a.x + 18, y: a.y - h * 0.5 }
-    };
-    const p = spot[name] || { x: a.x + 16, y: a.y - h * 0.5 };
-    return {
-      x: Math.max(10, Math.min(view.w - w - 300, p.x)),
-      y: Math.max(72, Math.min(view.h - h - 16, p.y))
-    };
+  function idOfCallout(el) {
+    return el.dataset.open || "resume";
+  }
+
+  function overlaps(a, b, pad) {
+    return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x &&
+      a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+  }
+
+  function placeLabels(els) {
+    const A = geo.anchors;
+    const byId = {};
+    els.forEach(function (el) { byId[idOfCallout(el)] = el; });
+    const boxes = [];
+    function add(id, x, y) {
+      const el = byId[id];
+      if (!el) return;
+      boxes.push({
+        id: id,
+        el: el,
+        x: x,
+        y: y,
+        w: el.offsetWidth,
+        h: el.offsetHeight
+      });
+    }
+    function stack(ids, x, y) {
+      let cursor = y;
+      ids.forEach(function (id) {
+        const el = byId[id];
+        if (!el) return;
+        add(id, x, cursor);
+        cursor += el.offsetHeight + 6;
+      });
+    }
+    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 16, A.home.y - 28);
+    if (A.stadium && byId.education) {
+      add("education", A.stadium.x - byId.education.offsetWidth - 20, A.stadium.y - byId.education.offsetHeight - 92);
+    }
+    if (A.memorial && byId.certifications) {
+      add("certifications", A.memorial.x - byId.certifications.offsetWidth - 28, A.memorial.y - 36);
+    }
+    if (A.dish && byId.contact) add("contact", A.dish.x + 16, A.dish.y - byId.contact.offsetHeight - 2);
+    if (geo.comp) {
+      const col = ["experience", "resume", "projects", "skills", "resources"].filter(function (id) { return byId[id]; });
+      const widest = col.reduce(function (m, id) { return Math.max(m, byId[id].offsetWidth); }, 0);
+      const total = col.reduce(function (m, id) { return m + byId[id].offsetHeight + 6; }, -6);
+      stack(col, geo.comp.x + geo.comp.w - widest, geo.comp.y - total - 10);
+    }
+    if (A.ship && byId["blog-updates"]) {
+      add("blog-updates", A.ship.x + 22, A.ship.y - byId["blog-updates"].offsetHeight * 0.5);
+    }
+    boxes.forEach(function (a) {
+      a.x = Math.max(8, Math.min(view.w - a.w - 12, a.x));
+      a.y = Math.max(70, Math.min(view.h - a.h - 28, a.y));
+    });
+    boxes.forEach(function (b) {
+      b.el.style.left = Math.round(b.x) + "px";
+      b.el.style.top = Math.round(b.y) + "px";
+    });
   }
 
   function spread(els, y0, y1, side, xAnchor) {
