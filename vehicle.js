@@ -709,12 +709,12 @@
     var towerX = -21;
     var tower = buildTowerLines(towerX);
     var pad = buildPadLines();
-    var marginTop = cramped ? 96 : 76;
-    var marginBot = cramped ? 176 : 46;
+    var marginTop = cramped ? 108 : 76;
+    var marginBot = cramped ? 200 : 46;
     var scale = (h - marginTop - marginBot) / (TOWER + 8);
     var cam = {
       scale: scale,
-      ox: w * (cramped ? 0.6 : 0.5),
+      ox: w * (cramped ? 0.48 : 0.5),
       oy: h - marginBot,
       lookX: 0,
       lookY: 0,
@@ -768,12 +768,12 @@
       },
       anchors: {
         nose: { x: tip.x + 8, y: tip.y + 4 },
-        ship: { x: tip.x + 14, y: tip.y + (ground.y - tip.y) * 0.42 },
-        home: coastSpot(cam, cramped ? -220 : -520, 22),
-        dish: coastSpot(cam, cramped ? -180 : -455, 12),
-        stadium: coastSpot(cam, cramped ? -120 : -270, 40),
-        memorial: coastSpot(cam, cramped ? -70 : -210, 62),
-        office: coastSpot(cam, cramped ? 90 : 175, 28),
+        ship: { x: P(R + 2.2, BELL + BOOST + 30, 0).x, y: P(R + 2.2, BELL + BOOST + 30, 0).y },
+        home: coastSpot(cam, cramped ? -150 : -580, 18),
+        dish: coastSpot(cam, cramped ? -110 : -500, 10),
+        stadium: coastSpot(cam, cramped ? -40 : -330, 36),
+        memorial: coastSpot(cam, cramped ? 10 : -190, 58),
+        office: coastSpot(cam, cramped ? 70 : 190, 26),
         terminal: { x: comp.x + comp.w * 0.72, y: comp.y + comp.h * 0.28 },
         keys: { x: comp.x + comp.w * 0.35, y: comp.y + comp.h * 0.82 }
       },
@@ -815,9 +815,9 @@
      tower is on screen for the whole descent. */
 
   var T_SPLIT = 12.2;
-  var CATCH_X = -1.6;
+  var CATCH_X = -8;
   var CATCH_Y = 92;
-  var CATCH2_X = -3.6;
+  var CATCH2_X = -6.5;
   var CATCH2_Y = 86;
   var T_END = 67.2;
 
@@ -987,8 +987,9 @@
     if (t < 20.6) return "Coast. Grid fins steering.";
     if (t < 23.4) return "Landing burn. Thirteen engines.";
     if (t < 25.2) return "Three center engines. Diverting into the arms.";
-    if (t < 26.2) return "Near hover between the chopsticks.";
-    if (t < 27.6) return "Arms close. Booster settles onto the pins.";
+    if (t < 25.6) return "Near hover between the chopsticks.";
+    if (t < 26.7) return "Arms closing over the grid fins.";
+    if (t < 28.2) return "Engines off. Booster sits on the arms.";
     if (t < 32.2) return "Pulling back. Ship climbing to orbit.";
     if (t < 33.2) return "Ship on orbit.";
     if (t < 34.2) return "Payload door opening.";
@@ -998,9 +999,9 @@
     if (t < 55.4) return "Reentry. Plasma on the heat shield.";
     if (t < 57.6) return "Flaps swing. Engines relight into the flip.";
     if (t < 59.6) return "Landing burn. Three sea-level Raptors.";
-    if (t < 60.8) return "Ship hovering between the open arms.";
-    if (t < 62.4) return "Chopsticks close. The ship settles onto the pins.";
-    if (t < 64.2) return "Caught on the second tower.";
+    if (t < 60.3) return "Ship hovering between the open arms.";
+    if (t < 61.2) return "Arms closing on the catch pins.";
+    if (t < 63.4) return "Engines off. The ship sits on the arms.";
     return "Back on the pad.";
   }
 
@@ -1068,11 +1069,12 @@
       var bb = ramp(t, 14.45, 14.9) * (1 - ramp(t, 16.85, 17.25));
       var land13 = ramp(t, 20.55, 21.0) * (1 - ramp(t, 23.2, 23.6));
       var land3 = ramp(t, 23.1, 23.5) * (1 - ramp(t, 26.15, 26.7));
-      bTh = Math.min(1, residual * (1 - flipOn) + flipOn * 0.82 * (1 - bb) + bb * 0.95 + land13 + land3 * 0.62);
+      var flipTh = flipOn * (1 - ramp(t, 16.9, 17.45)) * 0.82;
+      bTh = Math.min(1, residual * (1 - flipOn) + flipTh * (1 - bb) + bb * 0.95 + land13 + land3 * 0.62);
       pose.booster.bells = land13 > 0.2 && land13 >= land3 ? 13 : 3;
     }
     pose.booster.thrust = bTh;
-    pose.booster.plume = bTh > 0.04 ? bTh : (t > 26.1 && t < 27.7 ? (1 - ramp(t, 26.15, 27.55)) * 0.5 : 0);
+    pose.booster.plume = bTh > 0.04 ? bTh : (t > 26.05 && t < 26.85 ? (1 - ramp(t, 26.1, 26.8)) * 0.35 : 0);
     pose.shock = dip;
     pose.ship.thrust = ramp(t, 10.65, 11.75) * (1 - ramp(t, 15.7, 16.5));
     pose.qd = ramp(t, 0.15, 1.55);
@@ -1083,7 +1085,7 @@
     var pinCatch = CATCH_Y + (BOOST / 2 - 6.4);
     var trackY = clamp(pose.booster.y + (BOOST / 2 - 6.4), pin0, pinCatch + 4);
     pose.sticksY = t < 16.2 ? pin0 : mix(pin0, trackY, smooth(span(t, 16.2, 18.4)));
-    pose.sticksOpen = mix(0.78 + 0.18 * ramp(t, 0.2, 1.75), 0.08, smooth(span(t, 25.5, 26.7)));
+    pose.sticksOpen = mix(0.78 + 0.18 * ramp(t, 0.2, 1.75), 0.06, smooth(span(t, 25.6, 26.55)));
 
     var follow = ramp(t, 2.65, 6.1);
     var scaleMul = 1 - 0.42 * ramp(t, 2.85, 7.4);
@@ -1144,18 +1146,18 @@
     ], t);
     var lrot = mix(86, 0, smooth(span(t, 54.8, 57.4)));
     pose.landShip = bodyPose(lx, ly, lrot, SHIP / 2);
-    pose.landShip.thrust = ramp(t, 56.6, 57.2) * (1 - ramp(t, 60.9, 61.6));
+    pose.landShip.thrust = ramp(t, 56.6, 57.2) * (1 - ramp(t, 60.4, 60.9));
     pose.landShip.plume = pose.landShip.thrust > 0.04
       ? pose.landShip.thrust
-      : (t > 60.8 && t < 63.0 ? (1 - ramp(t, 60.9, 62.8)) * 0.48 : 0);
+      : (t > 60.3 && t < 61.15 ? (1 - ramp(t, 60.4, 61.1)) * 0.3 : 0);
     pose.landShip.plasma = ramp(t, 48.5, 49.2) * (1 - ramp(t, 54.6, 56.0));
-    var shipPin = clamp(ly + (SHIP / 2 - 9), 70, CATCH2_Y + SHIP / 2 - 7);
+    var shipPin = clamp(ly + (SHIP / 2 - 8), 70, CATCH2_Y + SHIP / 2 - 6);
     pose.sticks2Y = shipPin;
-    pose.sticks2Open = mix(0.96, 0.1, smooth(span(t, 60.0, 61.4)));
+    pose.sticks2Open = mix(0.96, 0.05, smooth(span(t, 60.2, 61.15)));
     var unit = model.cam0.scale / 5.05;
     var tighten = smooth(span(t, 52.8, 58.6));
     pose.landCam = {
-      scale: mix(1.85, 4.05, tighten) * unit * (model.cramped ? 0.78 : 1),
+      scale: mix(2.55, 4.05, tighten) * unit * (model.cramped ? 0.78 : 1),
       ox: model.w * (model.cramped ? 0.55 : 0.56),
       oy: model.h * 0.5,
       lookX: mix(28, CATCH2_X, tighten),
@@ -1303,6 +1305,11 @@
     };
     var top = project({ x: spec.x, y: TOWER, z: 0 }, local);
     var base = project({ x: spec.x, y: 0, z: 0 }, local);
+    if (spec.x > 0 && base.x > model.w - 340) {
+      local.ox -= base.x - (model.w - 340);
+      top = project({ x: spec.x, y: TOWER, z: 0 }, local);
+      base = project({ x: spec.x, y: 0, z: 0 }, local);
+    }
     if (top.y > model.h + 8 || base.y < -8) return;
     if (base.x < -40 || base.x > model.w + 40) return;
     var shift = spec.x - model.towerX;
@@ -1338,10 +1345,10 @@
     }
   }
 
-  function coastSpot(cam, meters, lift) {
+  function coastSpot(cam, px, lift) {
     var pad = project({ x: 0, y: 0, z: 0 }, cam);
-    var k = (cam.scale || 1) * 0.18;
-    return { x: pad.x + meters * k, y: pad.y - (lift || 0) };
+    var s = Math.max(0.4, Math.min(1.15, (cam.scale || 1) / 4.86));
+    return { x: pad.x + px * s, y: pad.y - (lift || 0) * s };
   }
 
   function drawCoast(ctx, model, cam) {
@@ -1359,8 +1366,8 @@
     function site(meters, draw, label, lift) {
       var p = coastSpot(cam, meters, 0);
       if (p.x < 18 || p.x > model.w - 18) return;
-      ctx.globalAlpha = 0.82;
-      draw(ctx, p.x, p.y, s);
+      ctx.globalAlpha = 0.62;
+      draw(ctx, p.x, p.y, s * 1.28);
       if (label) {
         ctx.globalAlpha = 0.72;
         ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
@@ -1368,67 +1375,108 @@
       }
     }
     if (cramped) {
-      var tower = project({ x: model.towerX, y: 0, z: 0 }, cam);
-      ctx.globalAlpha = 0.9;
-      if (tower.x > 70) {
-        drawShotgun(ctx, 22, ground.y, 0.5);
-        drawDish(ctx, 48, ground.y, 0.5);
+      var towerP = project({ x: model.towerX, y: 0, z: 0 }, cam);
+      ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
+      ctx.fillStyle = INK;
+      if (towerP.x > 88) {
+        ctx.globalAlpha = 0.9;
+        drawHome(ctx, 30, ground.y, 0.48);
+        drawDish(ctx, 52, ground.y, 0.48);
+        ctx.globalAlpha = 0.85;
+        ctx.fillText("New Orleans", 8, ground.y - 18);
       }
-      if (tower.x > 130) drawStadium(ctx, 86, ground.y, 0.42);
+      var shipEdge = project({ x: 12, y: 0, z: 0 }, cam);
+      if (shipEdge.x + 64 < model.w - 36) {
+        ctx.globalAlpha = 0.88;
+        drawStadium(ctx, shipEdge.x + 28, ground.y, 0.4);
+        ctx.globalAlpha = 0.85;
+        ctx.fillText("LSU", shipEdge.x + 16, ground.y - 20);
+      }
+      var padBX = model.w - 16;
+      ctx.globalAlpha = 0.7;
+      ctx.strokeRect(padBX - 4, ground.y - 44, 6, 44);
+      ctx.beginPath();
+      ctx.moveTo(padBX - 2, ground.y - 24);
+      ctx.lineTo(padBX + 7, ground.y - 20);
+      ctx.stroke();
+      ctx.globalAlpha = 0.8;
+      ctx.fillText("Pad B", padBX - 28, ground.y - 50);
     } else {
-      site(-520, drawShotgun, "Home, New Orleans", 24);
-      site(-455, drawDish, "", 0);
-      site(-270, drawStadium, "LSU, Baton Rouge", 58);
-      site(-210, drawMemorial, "", 0);
-      site(175, drawOffice, "", 0);
+      site(-580, drawHome, "Home, New Orleans", 58);
+      site(-500, drawDish, "", 0);
+      site(-330, drawStadium, "LSU, Baton Rouge", 72);
+      site(-190, drawMemorial, "", 0);
+      site(190, drawOffice, "", 0);
     }
     ctx.restore();
   }
 
   function drawStadium(ctx, x, y, s) {
-    var w = 78 * s;
-    var h = 26 * s;
+    var w = 86 * s;
+    var h = 22 * s;
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.5, y);
-    ctx.lineTo(x - w * 0.42, y - h);
-    ctx.lineTo(x + w * 0.42, y - h);
+    ctx.ellipse(x, y - h * 0.55, w * 0.5, h, 0, Math.PI, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x, y - h * 0.85, w * 0.36, h * 0.62, 0, Math.PI, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x, y - h * 0.35, w * 0.22, h * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.5, y - h * 0.55);
+    ctx.lineTo(x - w * 0.5, y);
     ctx.lineTo(x + w * 0.5, y);
-    ctx.moveTo(x - w * 0.3, y - h);
-    ctx.lineTo(x - w * 0.22, y - h - 16 * s);
-    ctx.lineTo(x + w * 0.22, y - h - 16 * s);
-    ctx.lineTo(x + w * 0.3, y - h);
-    ctx.moveTo(x - w * 0.16, y - 4 * s);
-    ctx.lineTo(x + w * 0.16, y - 4 * s);
+    ctx.lineTo(x + w * 0.5, y - h * 0.55);
     ctx.stroke();
   }
 
   function drawMemorial(ctx, x, y, s) {
-    var w = 11 * s;
-    var h = 58 * s;
-    ctx.strokeRect(x - w, y - h, w * 2, h);
+    var w = 8 * s;
+    var h = 72 * s;
     ctx.beginPath();
-    ctx.moveTo(x - w - 2 * s, y - h);
-    ctx.lineTo(x, y - h - 16 * s);
-    ctx.lineTo(x + w + 2 * s, y - h);
-    ctx.moveTo(x, y - h * 0.62);
-    ctx.arc(x, y - h * 0.62, 3.2 * s, 0, Math.PI * 2);
+    ctx.moveTo(x - w, y);
+    ctx.lineTo(x - w * 0.7, y - h);
+    ctx.lineTo(x + w * 0.7, y - h);
+    ctx.lineTo(x + w, y);
+    ctx.moveTo(x - w * 1.15, y - h);
+    ctx.lineTo(x, y - h - 18 * s);
+    ctx.lineTo(x + w * 1.15, y - h);
+    ctx.moveTo(x, y - h * 0.72);
+    ctx.arc(x, y - h * 0.72, 4.2 * s, 0, Math.PI * 2);
+    ctx.moveTo(x, y - h * 0.72 - 4.2 * s);
+    ctx.lineTo(x, y - h * 0.72 + 4.2 * s);
+    ctx.moveTo(x - 4.2 * s, y - h * 0.72);
+    ctx.lineTo(x + 4.2 * s, y - h * 0.72);
     ctx.stroke();
   }
 
-  function drawShotgun(ctx, x, y, s) {
-    var w = 52 * s;
-    var h = 18 * s;
+  function drawHome(ctx, x, y, s) {
+    var w = 62 * s;
+    var story = 14 * s;
+    var h = story * 2;
+    ctx.strokeRect(x - w * 0.38, y - h, w * 0.76, h);
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.55, y);
-    ctx.lineTo(x - w * 0.55, y - h);
-    ctx.lineTo(x + w * 0.48, y - h);
-    ctx.lineTo(x + w * 0.48, y);
-    ctx.moveTo(x - w * 0.62, y - h + 2 * s);
-    ctx.lineTo(x + w * 0.2, y - h + 2 * s);
-    ctx.lineTo(x + w * 0.2, y - 3 * s);
-    ctx.strokeRect(x - w * 0.28, y - h + 5 * s, 6 * s, 5 * s);
-    ctx.strokeRect(x + w * 0.02, y - h + 5 * s, 6 * s, 5 * s);
-    ctx.strokeRect(x - w * 0.48, y - 12 * s, 5 * s, 9 * s);
+    ctx.moveTo(x - w * 0.46, y - h);
+    ctx.lineTo(x, y - h - 13 * s);
+    ctx.lineTo(x + w * 0.46, y - h);
+    ctx.moveTo(x - w * 0.38, y - story);
+    ctx.lineTo(x + w * 0.38, y - story);
+    ctx.stroke();
+    ctx.strokeRect(x - w * 0.26, y - h + 4 * s, 8 * s, 6 * s);
+    ctx.strokeRect(x + w * 0.04, y - h + 4 * s, 8 * s, 6 * s);
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.5, y - story * 0.15);
+    ctx.lineTo(x - w * 0.5, y);
+    ctx.moveTo(x - w * 0.5, y - story * 0.62);
+    ctx.lineTo(x - w * 0.08, y - story * 0.62);
+    ctx.lineTo(x - w * 0.08, y);
+    ctx.stroke();
+    ctx.strokeRect(x - w * 0.06, y - story + 2 * s, 6 * s, story - 2 * s);
+    ctx.strokeRect(x + w * 0.38, y - story * 0.9, w * 0.28, story * 0.9);
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.44, y - story * 0.72);
+    ctx.lineTo(x + w * 0.6, y - story * 0.72);
     ctx.stroke();
   }
 
@@ -1472,7 +1520,10 @@
         open: 0.72
       });
     }
-    if (pose.steam > 0.04) drawSteam(ctx, cam, pose.steam, t);
+    if (pose.steam > 0.04) {
+      drawSteam(ctx, cam, pose.steam, t);
+      drawPadCloud(ctx, cam, pose.steam, t);
+    }
     if (pose.shock > 0.04) drawShock(ctx, cam, pose, pose.shock);
     var bPow = pose.booster.plume != null ? pose.booster.plume : pose.booster.thrust;
     var sPow = pose.ship.plume != null ? pose.ship.plume : pose.ship.thrust;
@@ -1551,40 +1602,89 @@
   function fillSilhouette(ctx, body, pose, cam, alpha, strokeIt) {
     var len = body.length || SHIP;
     var radiusAt = body.radiusAt || function () { return R; };
-    var steps = 22;
-    var left = [];
-    var right = [];
+    var tail = project(xform({ x: 0, y: 0, z: 0 }, pose), cam);
+    var nose = project(xform({ x: 0, y: len, z: 0 }, pose), cam);
+    var ax = nose.x - tail.x;
+    var ay = nose.y - tail.y;
+    var al = Math.hypot(ax, ay) || 1;
+    var px = -ay / al;
+    var py = ax / al;
+    var steps = 26;
+    var upper = [];
+    var lower = [];
     var i;
     var k;
     for (i = 0; i <= steps; i++) {
       var y = (len * i) / steps;
       var r = radiusAt(y);
-      var bestL = null;
-      var bestR = null;
-      for (k = 0; k < 12; k++) {
-        var th = (k / 12) * Math.PI * 2;
+      var bestU = -1e9;
+      var bestL = 1e9;
+      var uP = null;
+      var lP = null;
+      for (k = 0; k < 16; k++) {
+        var th = (k / 16) * Math.PI * 2;
         var p = project(xform({ x: r * Math.cos(th), y: y, z: r * Math.sin(th) }, pose), cam);
-        if (!bestL || p.x < bestL.x) bestL = p;
-        if (!bestR || p.x > bestR.x) bestR = p;
+        var side = (p.x - tail.x) * px + (p.y - tail.y) * py;
+        if (side > bestU) { bestU = side; uP = p; }
+        if (side < bestL) { bestL = side; lP = p; }
       }
-      left.push(bestL);
-      right.push(bestR);
+      upper.push(uP);
+      lower.push(lP);
     }
     ctx.beginPath();
-    ctx.moveTo(left[0].x, left[0].y);
-    for (i = 1; i <= steps; i++) ctx.lineTo(left[i].x, left[i].y);
-    for (i = steps; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y);
+    ctx.moveTo(lower[0].x, lower[0].y);
+    for (i = 1; i <= steps; i++) ctx.lineTo(lower[i].x, lower[i].y);
+    for (i = steps; i >= 0; i--) ctx.lineTo(upper[i].x, upper[i].y);
     ctx.closePath();
     ctx.fillStyle = SKY;
     ctx.globalAlpha = alpha;
     ctx.fill();
     if (strokeIt) {
       ctx.strokeStyle = INK;
-      ctx.lineWidth = 1.3;
+      ctx.lineWidth = 1.35;
       ctx.lineJoin = "round";
       ctx.globalAlpha = alpha;
       ctx.stroke();
     }
+  }
+
+  function drawProfileFlaps(ctx, pose, cam, alpha) {
+    var tail = project(xform({ x: 0, y: 0, z: 0 }, pose), cam);
+    var nose = project(xform({ x: 0, y: SHIP, z: 0 }, pose), cam);
+    var lee = project(xform({ x: R + 3, y: SHIP * 0.5, z: 0 }, pose), cam);
+    var mid = project(xform({ x: 0, y: SHIP * 0.5, z: 0 }, pose), cam);
+    var ax = nose.x - tail.x;
+    var ay = nose.y - tail.y;
+    var al = Math.hypot(ax, ay) || 1;
+    ax /= al;
+    ay /= al;
+    var lx = lee.x - mid.x;
+    var ly = lee.y - mid.y;
+    var ll = Math.hypot(lx, ly) || 1;
+    lx /= ll;
+    ly /= ll;
+    function flap(u, chord, rise) {
+      var bx = tail.x + (nose.x - tail.x) * u;
+      var by = tail.y + (nose.y - tail.y) * u;
+      var cax = ax * chord * 0.5;
+      var cay = ay * chord * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(bx - cax, by - cay);
+      ctx.lineTo(bx + cax * 0.15, by + cay * 0.15);
+      ctx.lineTo(bx + cax * 0.2 + lx * rise, by + cay * 0.2 + ly * rise);
+      ctx.lineTo(bx - cax * 0.55 + lx * rise * 0.72, by - cay * 0.55 + ly * rise * 0.72);
+      ctx.closePath();
+      ctx.fillStyle = SKY;
+      ctx.globalAlpha = alpha;
+      ctx.fill();
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.35;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+    }
+    var dia = Math.hypot(nose.x - tail.x, nose.y - tail.y) / 5.6;
+    flap(0.78, dia * 0.55, dia * 0.7);
+    flap(0.22, dia * 1.15, dia * 1.25);
   }
 
   function drawFlapShape(ctx, flap, pose, cam, alpha) {
@@ -1610,9 +1710,17 @@
     var lod = lodOf(pose, cam, body.length);
     var flaps = body.flaps || [];
     var i;
-    for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
+    var tilt = Math.abs(pose.rot || 0) % 180;
+    if (tilt > 90) tilt = 180 - tilt;
+    var profile = body.kind === "ship" && tilt > 42;
+    if (!profile) {
+      for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
+    }
     fillSilhouette(ctx, body, pose, cam, alpha, lod < 2);
-    for (i = 0; i < flaps.length; i++) if (!flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
+    if (profile) drawProfileFlaps(ctx, pose, cam, alpha);
+    else {
+      for (i = 0; i < flaps.length; i++) if (!flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
+    }
     if (lod >= 2) {
       ctx.fillStyle = INK;
       for (i = 0; i < body.dots.length; i++) {
@@ -1679,7 +1787,7 @@
   function drawChopsticks(ctx, cam, towerX, y, open, alpha) {
     var pivotX = towerX + 4.25;
     var z = 1.5;
-    var len = 12.4;
+    var len = 16;
     var depth = 2.05;
     var spread = 0.07 + open * 0.62;
     function drawArm(ang) {
@@ -1787,6 +1895,23 @@
     }
   }
 
+  function drawPadCloud(ctx, cam, amount, t) {
+    var i;
+    ctx.fillStyle = INK;
+    for (i = 0; i < 90; i++) {
+      var phase = fract(hash(i + 80) + t * 0.35);
+      var ang = (i / 90) * Math.PI * 2;
+      var rad = (6 + phase * 26) * (0.4 + amount);
+      var p = project({
+        x: Math.cos(ang) * rad,
+        y: 0.4 + phase * 3.5,
+        z: Math.sin(ang) * rad * 0.55
+      }, cam);
+      ctx.globalAlpha = (1 - phase) * 0.28 * amount;
+      ctx.fillRect(p.x, p.y, phase > 0.5 ? 2.4 : 1.6, 1.6);
+    }
+  }
+
   function drawSteam(ctx, cam, amount, t) {
     if (amount < 0.04) return;
     var i;
@@ -1794,7 +1919,7 @@
     for (i = 0; i < 70; i++) {
       var phase = fract(hash(i + 4) * 1.7 + t * (0.22 + hash(i + 9) * 0.28));
       var ang = hash(i + 2) * Math.PI * 2;
-      var rad = (2 + hash(i + 6) * 11) * (0.25 + phase);
+      var rad = (4 + hash(i + 6) * 22) * (0.35 + phase);
       var p = project({
         x: Math.cos(ang) * rad,
         y: DECK + phase * (5 + amount * 11),
@@ -1825,17 +1950,30 @@
       var dx = tip.x - origin.x;
       var dy = tip.y - origin.y;
       var dz = (tip.z || 0) - (origin.z || 0);
-      var len = (10 + power * 32) * (cam.scale < 1.8 ? 2.8 : 1);
-      for (i = 0; i < 28; i++) {
-        var u = i / 27;
+      var len = (8 + power * 22) * (cam.scale < 1.8 ? 2.4 : 1);
+      var sideX = -dy;
+      var sideY = dx;
+      var sideL = Math.hypot(sideX, sideY) || 1;
+      sideX /= sideL;
+      sideY /= sideL;
+      for (i = 0; i < 22; i++) {
+        var u = i / 21;
+        if (origin.y + dy * len * u < -1) continue;
+        var fan = u * u * (6 + power * 16);
         var p = project({
-          x: origin.x + dx * len * u,
-          y: origin.y + dy * len * u,
+          x: origin.x + dx * len * u + sideX * fan,
+          y: origin.y + dy * len * u + sideY * fan,
           z: (origin.z || 0) + dz * len * u
         }, cam);
-        var s = (1.8 + (1 - u) * (cam.scale < 1.8 ? 8 : 6.5)) * (0.55 + power * 0.6);
-        ctx.globalAlpha = Math.pow(1 - u, 0.55) * (0.72 + 0.28 * power);
-        ctx.fillRect(p.x - s * 0.5, p.y - s * 0.35, s, s * 0.7);
+        var q = project({
+          x: origin.x + dx * len * u - sideX * fan,
+          y: origin.y + dy * len * u - sideY * fan,
+          z: (origin.z || 0) + dz * len * u
+        }, cam);
+        var s = (4 + (1 - u) * 7) * (0.45 + power * 0.7);
+        ctx.globalAlpha = Math.pow(1 - u, 0.45) * (0.35 + 0.4 * power);
+        ctx.fillRect(p.x - s * 0.5, p.y - s * 0.4, s, s * 0.8);
+        ctx.fillRect(q.x - s * 0.5, q.y - s * 0.4, s, s * 0.8);
       }
     }
   }
@@ -1858,8 +1996,8 @@
     for (i = 0; i < n; i++) {
       var phase = fract(hash(seed + i * 3) + t * (0.65 + hash(seed + i) * 0.85));
       var len = phase * (7 + power * 18);
-      var wob = (hash(seed + i + 11) - 0.5) * 2 * (0.25 + phase * phase * 2.7);
-      var wob2 = (hash(seed + i + 29) - 0.5) * 2 * (0.25 + phase * phase * 2.7);
+      var wob = (hash(seed + i + 11) - 0.5) * 2 * (0.6 + phase * phase * 7.5) * (0.45 + power);
+      var wob2 = (hash(seed + i + 29) - 0.5) * 2 * (0.6 + phase * phase * 7.5) * (0.45 + power);
       var p = project({
         x: origin.x + dx * len + px * wob,
         y: origin.y + dy * len + py * wob,
@@ -2063,6 +2201,68 @@
     return { cx: cx, cy: cy, radius: radius };
   }
 
+  function globePoint(latDeg, lonDeg, cx, cy, radius) {
+    var lat = latDeg * Math.PI / 180;
+    var lon = lonDeg * Math.PI / 180;
+    var lat0 = 28 * Math.PI / 180;
+    var lon0 = -90.6 * Math.PI / 180;
+    var cosLat = Math.cos(lat);
+    var dlon = lon - lon0;
+    var z = Math.sin(lat0) * Math.sin(lat) + Math.cos(lat0) * cosLat * Math.cos(dlon);
+    if (z <= 0.08) return null;
+    var x = cosLat * Math.sin(dlon);
+    var y = Math.cos(lat0) * Math.sin(lat) - Math.sin(lat0) * cosLat * Math.cos(dlon);
+    return { x: cx + x * radius, y: cy - y * radius };
+  }
+
+  function drawNorthAmerica(ctx, cx, cy, radius, alpha) {
+    var shapes = [
+      [
+        [49, -125], [46, -124], [40, -124], [34, -121], [32, -117], [31.5, -106],
+        [26, -97.2], [27.8, -97], [29.2, -95],         [29.4, -91], [29.2, -89.2],
+        [30.2, -88.2], [30.1, -86.2], [29.6, -84.2], [28.4, -83.2], [27.2, -82.8],
+        [25.4, -82.2], [24.2, -81.6], [24.7, -80.2], [26.2, -79.6], [28.2, -80.2],
+        [30.2, -81.2], [32, -80.6],
+        [35.2, -75.5], [40.5, -74], [42.3, -70.8], [44.5, -67], [47, -60],
+        [50, -56], [53, -56], [52, -66], [55, -80], [54, -90], [56, -100],
+        [55, -115], [52, -128], [49, -125]
+      ],
+      [
+        [25.9, -97.4], [22, -97.8], [19, -96.1], [18.5, -91], [21.2, -87],
+        [21.5, -86.7], [20, -90.5], [18, -94], [16.5, -99], [20, -105],
+        [23, -106.4], [26, -112], [28, -114], [31, -114.5], [32.2, -117],
+        [31.8, -106.4], [29, -102], [26, -97.4]
+      ]
+    ];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - 1.5, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = "rgba(244,241,232,0.08)";
+    ctx.lineWidth = 1.25;
+    ctx.lineJoin = "round";
+    var s;
+    for (s = 0; s < shapes.length; s++) {
+      var coast = shapes[s];
+      ctx.beginPath();
+      var started = false;
+      var i;
+      for (i = 0; i < coast.length; i++) {
+        var p = globePoint(coast[i][0], coast[i][1], cx, cy, radius);
+        if (!p) { started = false; continue; }
+        if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.globalAlpha = 1;
+      ctx.fill();
+      ctx.globalAlpha = 0.92 * alpha;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function drawEarth(ctx, model, pose) {
     if (!model.globe) model.globe = buildGlobe();
     var lay = earthLayout(model);
@@ -2088,7 +2288,9 @@
       var day = d.x * sun.x + d.y * sun.y + d.z * sun.z;
       var sx = cx + d.x * radius;
       var sy = cy - d.y * radius;
-      if (d.land) {
+      if (d.land && !d.mark) {
+        /* Continent shape is drawn as an outline, not this noise. */
+      } else if (d.land) {
         if (day > 0.05) {
           ctx.globalAlpha = 0.35 + day * 0.6;
           ctx.fillRect(sx, sy, day > 0.55 ? 1.7 : 1.2, day > 0.55 ? 1.7 : 1.2);
@@ -2194,11 +2396,16 @@
     drawSats(ctx, model._cards, pose);
     drawAirliner(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     drawHomeLink(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
-    if ((pose.t || 0) > 34 && (pose.t || 0) < 48.4 && (pose.earthAlpha || 0) > 0.4) {
-      ctx.globalAlpha = 0.75 * pose.earthAlpha;
-      ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
-      ctx.fillStyle = INK;
-      ctx.fillText("Gulf Coast", cx - radius * 0.15, cy + radius * 0.42);
+    drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
+    if ((pose.t || 0) > 33 && (pose.t || 0) < 48.6 && (pose.earthAlpha || 0) > 0.35) {
+      var la = globePoint(29.95, -90.07, cx, cy, radius);
+      if (la) {
+        ctx.globalAlpha = 0.95 * pose.earthAlpha;
+        ctx.fillStyle = INK;
+        ctx.fillRect(la.x - 1.6, la.y - 1.6, 3.2, 3.2);
+        ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
+        ctx.fillText("Louisiana", la.x + 6, la.y - 4);
+      }
     }
     ctx.restore();
   }
@@ -2269,13 +2476,14 @@
     for (i = 0; i < out.length; i++) {
       var c = out[i];
       if (i !== latest) continue;
-      var w = 176;
-      var h = 54;
-      var x = c.satX + c.ox * 72 + (c.oy < -0.35 ? 28 : 0);
-      var y = c.satY + (c.oy < -0.35 ? 28 : c.oy * 20) - h * 0.45;
-      if (c.ox < 0) x -= w;
+      var w = 340;
+      var cols = 32;
+      var linesN = Math.max(1, Math.ceil(c.text.length / cols));
+      var h = 22 + linesN * 18;
+      var x = 18;
+      var y = model.cramped ? 78 : 148;
       x = clamp(x, 10, model.w - w - 10);
-      y = clamp(y, 96, model.h - h - 86);
+      y = clamp(y, 72, model.h - h - 86);
       c.x = x;
       c.y = y;
       c.w = w;
@@ -2360,13 +2568,26 @@
     var t = pose.t || 0;
     if (!geo || t < 36.6 || t > 47.7 || (pose.earthAlpha || 0) < 0.08) return;
     var fade = ramp(t, 36.6, 37.3) * (1 - ramp(t, 47.0, 47.65)) * pose.earthAlpha;
-    var u = span(t, 36.7, 47.2);
-    var limb = mix(1.15, 2.15, u);
-    var x = geo.cx + Math.cos(limb) * (geo.radius + 22);
-    var y = geo.cy + Math.sin(limb) * (geo.radius + 22);
-    var L = model.cramped ? 108 : 168;
+    var panelW = model.cramped ? 210 : 330;
+    var panelH = model.cramped ? 132 : 176;
+    var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
+    var panelY = model.cramped ? 96 : 112;
+    ctx.save();
+    ctx.globalAlpha = 0.96 * fade;
+    ctx.fillStyle = "#12161e";
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.1;
+    ctx.globalAlpha = 0.75 * fade;
+    ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1);
+    ctx.globalAlpha = 0.28 * fade;
+    ctx.fillRect(panelX + 10, panelY + panelH * 0.78, panelW - 20, 1.2);
+    ctx.restore();
+    var x = panelX + panelW * 0.56;
+    var y = panelY + panelH * 0.62;
+    var L = model.cramped ? 96 : 150;
     var r = L * 0.046;
-    var rot = limb + Math.PI / 2;
+    var rot = 0;
     function worldPoint(px, py) {
       return {
         x: x + px * Math.cos(rot) - py * Math.sin(rot),
@@ -2428,54 +2649,66 @@
     ctx.stroke();
     ctx.restore();
     var dome = worldPoint(L * 0.1, -r - 2.2);
-    if (!cards || !cards.length) return;
+    var sat = { x: panelX + panelW * 0.5, y: panelY + 18 };
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.globalAlpha = 0.9 * fade;
+    ctx.strokeRect(sat.x - 7, sat.y - 3, 14, 6);
+    ctx.strokeRect(sat.x - 16, sat.y - 2, 8, 4);
+    ctx.strokeRect(sat.x + 8, sat.y - 2, 8, 4);
+    ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillStyle = INK;
+    ctx.fillText("35,000 ft", panelX + 10, panelY + 16);
+    ctx.restore();
+    beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade);
+    if (!cards) return;
     var linked = [];
     var i;
     for (i = 0; i < cards.length; i++) if (cards[i].unfold > 0.9) linked.push(cards[i]);
-    if (linked.length < 2) return;
     for (i = 0; i < linked.length - 1; i++) {
-      beamPackets(ctx, linked[i].satX, linked[i].satY, linked[i + 1].satX, linked[i + 1].satY, t, i * 0.17, fade * 0.45);
+      beamPackets(ctx, linked[i].satX, linked[i].satY, linked[i + 1].satX, linked[i + 1].satY, t, i * 0.17, fade * 0.35);
     }
-    var planeAng = Math.atan2(dome.y - geo.cy, dome.x - geo.cx);
-    var best = linked[0];
-    var bestD = 1e9;
-    for (i = 0; i < linked.length; i++) {
-      var sa = Math.atan2(linked[i].satY - geo.cy, linked[i].satX - geo.cx);
-      var d = Math.abs(Math.atan2(Math.sin(sa - planeAng), Math.cos(sa - planeAng)));
-      if (d < bestD) { bestD = d; best = linked[i]; }
-    }
-    beamPackets(ctx, best.satX, best.satY, dome.x, dome.y, t, 0.63, fade);
   }
 
 
   function drawHomeLink(ctx, model, pose, cards, geo) {
     var t = pose.t || 0;
-    if (!geo || t < 35.2 || t > 47.6 || (pose.earthAlpha || 0) < 0.15) return;
-    var fade = ramp(t, 35.2, 36.0) * (1 - ramp(t, 47.0, 47.55)) * pose.earthAlpha;
-    var x = geo.cx - geo.radius * 0.72;
-    var y = geo.cy + geo.radius + (model.cramped ? 28 : 46);
-    var s = model.cramped ? 0.7 : 1;
+    if (!geo || t < 35.4 || t > 47.5 || (pose.earthAlpha || 0) < 0.15) return;
+    var fade = ramp(t, 35.4, 36.2) * (1 - ramp(t, 46.9, 47.45)) * pose.earthAlpha;
+    var panelW = model.cramped ? 210 : 330;
+    var panelH = model.cramped ? 120 : 150;
+    var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
+    var panelY = (model.cramped ? 96 : 112) + (model.cramped ? 144 : 192);
+    if (panelY + panelH > model.h - 70) panelY = model.h - panelH - 78;
+    var s = model.cramped ? 0.85 : 1.15;
+    var groundY = panelY + panelH - 28;
+    var houseX = panelX + panelW * 0.42;
     ctx.save();
+    ctx.globalAlpha = 0.96 * fade;
+    ctx.fillStyle = "#12161e";
+    ctx.fillRect(panelX, panelY, panelW, panelH);
     ctx.strokeStyle = INK;
-    ctx.fillStyle = INK;
     ctx.lineWidth = 1.1;
+    ctx.globalAlpha = 0.75 * fade;
+    ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1);
+    ctx.globalAlpha = 0.45 * fade;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 12, groundY);
+    ctx.lineTo(panelX + panelW - 12, groundY);
+    ctx.stroke();
     ctx.globalAlpha = 0.9 * fade;
-    drawShotgun(ctx, x - 16 * s, y, s);
-    drawDish(ctx, x + 18 * s, y, s);
-    ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
-    ctx.fillText("Home, New Orleans", x - 28 * s, y + 16);
-    var dish = { x: x + 26 * s, y: y - 12 * s };
+    drawHome(ctx, houseX, groundY, s);
+    drawDish(ctx, houseX + 58 * s, groundY, s);
+    ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillStyle = INK;
+    ctx.fillText("Home, New Orleans", panelX + 12, panelY + 18);
+    var sat = { x: panelX + panelW * 0.62, y: panelY + 34 };
+    ctx.strokeRect(sat.x - 6, sat.y - 3, 12, 5);
+    ctx.strokeRect(sat.x - 14, sat.y - 1, 7, 3);
+    ctx.strokeRect(sat.x + 7, sat.y - 1, 7, 3);
+    var dish = { x: houseX + 68 * s, y: groundY - 16 * s };
     ctx.restore();
-    if (!cards || !cards.length) return;
-    var best = null;
-    var bestD = 1e9;
-    var i;
-    for (i = 0; i < cards.length; i++) {
-      if (cards[i].unfold < 0.55) continue;
-      var d = Math.hypot(cards[i].satX - dish.x, cards[i].satY - dish.y);
-      if (d < bestD) { bestD = d; best = cards[i]; }
-    }
-    if (best) beamPackets(ctx, best.satX, best.satY, dish.x, dish.y, t, 0.21, fade);
+    beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade);
   }
 
   function drawShadow(ctx, cam) {

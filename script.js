@@ -729,16 +729,14 @@
       el.style.left = "";
       el.style.right = "";
     });
-    if (!cramped) {
-      const whisperH = document.querySelector(".whisper").offsetHeight;
-      const top = Math.max(78, geo.yTip - 8);
-      const botL = Math.min(view.h - 48, geo.base - 168);
-      const botR = Math.min(geo.base - 150, view.h - whisperH - 36);
-      const leftX = geo.leftReach - 18;
-      let rightX = Math.max(geo.rightReach, geo.comp.x + geo.comp.w) + 54;
-      rightX = Math.min(rightX, view.w - 250);
-      spread(left, top, Math.max(top + 48, botL), "left", leftX);
-      spread(right, top, Math.max(top + 48, botR), "right", rightX);
+    if (!cramped && geo.anchors) {
+      els.forEach(function (el) {
+        const a = geo.anchors[el.dataset.anchor];
+        if (!a) return;
+        const box = labelBox(el.dataset.anchor, a, el.offsetWidth, el.offsetHeight);
+        el.style.left = Math.round(box.x) + "px";
+        el.style.top = Math.round(box.y) + "px";
+      });
     }
     measureJoints();
     const lift = shipShift;
@@ -751,6 +749,24 @@
     termHot.style.top = geo.comp.y - 8 + "px";
     termHot.style.width = geo.comp.w + 20 + "px";
     termHot.style.height = geo.base - geo.comp.y + 10 + "px";
+  }
+
+  function labelBox(name, a, w, h) {
+    const spot = {
+      home: { x: a.x - w - 10, y: a.y - h - 8 },
+      dish: { x: a.x + 6, y: a.y - h - 22 },
+      stadium: { x: a.x - w - 18, y: a.y - h - 64 },
+      memorial: { x: a.x - w - 14, y: a.y - h - 36 },
+      office: { x: a.x - w - 12, y: a.y - h - 10 },
+      terminal: { x: a.x + 12, y: a.y - h * 0.5 },
+      keys: { x: a.x + 12, y: a.y + 6 },
+      ship: { x: a.x + 18, y: a.y - h * 0.5 }
+    };
+    const p = spot[name] || { x: a.x + 16, y: a.y - h * 0.5 };
+    return {
+      x: Math.max(10, Math.min(view.w - w - 300, p.x)),
+      y: Math.max(72, Math.min(view.h - h - 16, p.y))
+    };
   }
 
   function spread(els, y0, y1, side, xAnchor) {
@@ -879,9 +895,12 @@
       if (html.classList.contains("panel-open") && j.side === "right") return;
       const a = anchorXY(j.anchor);
       const hot = hoverId === j.id;
+      const elbow = j.x + (a.x >= j.x ? 16 : -16);
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(j.x, j.y);
+      ctx.moveTo(j.x, j.y);
+      ctx.lineTo(elbow, j.y);
+      ctx.lineTo(elbow, a.y);
+      ctx.lineTo(a.x, a.y);
       ctx.strokeStyle = hot ? "rgba(244,241,232,0.95)" : "rgba(244,241,232,0.4)";
       ctx.lineWidth = hot ? 1.35 : 1;
       ctx.stroke();
