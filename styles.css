@@ -813,6 +813,15 @@ html:not(.scene) .colophon { padding: 36px 8px 12px; }
 
 #term-in:focus { outline: none; }
 
+html.cramped .term {
+    left: 12px;
+    bottom: 132px;
+    width: calc(100% - 24px);
+    z-index: 9;
+}
+
+html.cramped #term-in { font-size: 16px; }
+
 /* ---------- motion & small screens ---------- */
 
 html.cramped .whisper p,

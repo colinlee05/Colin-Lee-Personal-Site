@@ -1498,6 +1498,22 @@
     } else {
       site(-580, drawHome, "Home, New Orleans", 84, 48);
       site(-500, drawDish, "", 0, 16);
+      var homeP = coastSpot(cam, -580, 0);
+      var domeScale = Math.max(0.5, s * 0.62);
+      var domeHalf = 26 * domeScale;
+      var domeX = homeP.x - 34 - domeHalf;
+      if (domeX - domeHalf > 12) {
+        ctx.globalAlpha = 0.62;
+        ctx.strokeStyle = INK;
+        drawSuperdome(ctx, domeX, ground.y, domeScale);
+      }
+      var carScale = 0.46;
+      var carX = homeP.x + 36;
+      var dishX = coastSpot(cam, -500, 0).x;
+      if (carX - 14 > homeP.x + 18 && carX + 16 < dishX - 6) {
+        ctx.globalAlpha = 0.9;
+        drawStreetcar(ctx, carX, ground.y, carScale);
+      }
       site(-330, drawStadium, "LSU, Baton Rouge", 72, 62);
       site(-190, drawMemorial, "", 0, 16);
       site(190, drawOffice, "", 0, 22);
@@ -1582,6 +1598,49 @@
     ctx.moveTo(x + w * 0.44, y - story * 0.72);
     ctx.lineTo(x + w * 0.6, y - story * 0.72);
     ctx.stroke();
+    var railY = y - story * 0.62;
+    var beadX = x - w * 0.46;
+    var beads = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
+    var bead;
+    var prevFill = ctx.fillStyle;
+    for (bead = 0; bead < 6; bead++) {
+      ctx.fillStyle = beads[bead % 3];
+      ctx.beginPath();
+      ctx.arc(beadX + bead * 3.1 * s, railY + (2.2 + (bead % 2) * 1.5) * s, 1.25 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = prevFill;
+  }
+
+  function drawSuperdome(ctx, x, y, s) {
+    var w = 26 * s;
+    var h = 12 * s;
+    ctx.beginPath();
+    ctx.moveTo(x - w, y);
+    ctx.lineTo(x - w, y - h * 0.28);
+    ctx.quadraticCurveTo(x, y - h * 1.45, x + w, y - h * 0.28);
+    ctx.lineTo(x + w, y);
+    ctx.moveTo(x - w * 0.55, y);
+    ctx.quadraticCurveTo(x - w * 0.15, y - h * 1.1, x, y - h * 1.2);
+    ctx.stroke();
+  }
+
+  function drawStreetcar(ctx, x, y, s) {
+    ctx.save();
+    ctx.strokeStyle = "#2f8a5b";
+    ctx.lineWidth = 1.15;
+    var w = 36 * s;
+    var h = 14 * s;
+    ctx.strokeRect(x - w / 2, y - h, w, h);
+    ctx.strokeRect(x - w * 0.32, y - h + 3 * s, 7 * s, 5 * s);
+    ctx.strokeRect(x - w * 0.02, y - h + 3 * s, 7 * s, 5 * s);
+    ctx.beginPath();
+    ctx.arc(x - w * 0.28, y, 2.1 * s, 0, Math.PI * 2);
+    ctx.arc(x + w * 0.28, y, 2.1 * s, 0, Math.PI * 2);
+    ctx.moveTo(x - 2 * s, y - h);
+    ctx.lineTo(x + 6 * s, y - h - 9 * s);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawDish(ctx, x, y, s) {
@@ -2864,7 +2923,7 @@
     ctx.restore();
   }
 
-  function beamPackets(ctx, x0, y0, x1, y1, t, seed, alpha) {
+  function beamPackets(ctx, x0, y0, x1, y1, t, seed, alpha, gate) {
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
@@ -2878,7 +2937,31 @@
     for (i = 0; i < 3; i++) {
       var u = fract((t * 0.28) + seed + i * 0.33);
       ctx.globalAlpha = (0.35 + 0.55 * (1 - Math.abs(u - 0.5) * 1.2)) * alpha;
-      ctx.fillRect(mix(x0, x1, u) - 1.1, mix(y0, y1, u) - 1.1, 2.2, 2.2);
+      ctx.beginPath();
+      ctx.arc(mix(x0, x1, u), mix(y0, y1, u), 1.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (gate) {
+      var gx = mix(x0, x1, 0.2);
+      var gy = mix(y0, y1, 0.2);
+      ctx.globalAlpha = 0.92 * alpha;
+      ctx.fillStyle = SKY;
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 1.15;
+      ctx.beginPath();
+      ctx.arc(gx, gy - 5, 3.1, Math.PI, 0);
+      ctx.stroke();
+      ctx.fillRect(gx - 4, gy - 4, 8, 7);
+      ctx.strokeRect(gx - 4, gy - 4, 8, 7);
+      ctx.beginPath();
+      ctx.arc(gx, gy - 0.4, 1.05, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 0.78 * alpha;
+      ctx.fillStyle = INK;
+      ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
+      var gateLabel = "encrypted, end to end";
+      var gateW = ctx.measureText(gateLabel).width;
+      ctx.fillText(gateLabel, gx - gateW / 2, gy + 16);
     }
     ctx.restore();
   }
@@ -3012,9 +3095,31 @@
     ctx.strokeRect(sat.x + 8, sat.y - 2, 8, 4);
     ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
     ctx.fillStyle = INK;
-    ctx.fillText("35,000 ft", panelX + 10, panelY + 16);
+    var live = window.LiveFlight && window.LiveFlight.flight;
+    var maxLabel = Math.min(168, panelW * 0.46);
+    function fitLine(text, x, y) {
+      if (ctx.measureText(text).width <= maxLabel) {
+        ctx.fillText(text, x, y);
+        return y + 13;
+      }
+      var words = text.split(" ");
+      var line = "";
+      var n;
+      for (n = 0; n < words.length; n++) {
+        var trial = line ? line + " " + words[n] : words[n];
+        if (line && ctx.measureText(trial).width > maxLabel) {
+          ctx.fillText(line, x, y);
+          y += 13;
+          line = words[n];
+        } else line = trial;
+      }
+      if (line) ctx.fillText(line, x, y);
+      return y + 13;
+    }
+    var labelY = fitLine(live ? live.line1 : "35,000 ft", panelX + 10, panelY + 16);
+    if (live && live.line2) fitLine(live.line2, panelX + 10, labelY);
     ctx.restore();
-    beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade);
+    beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade, true);
     if (!cards) return;
     var linked = [];
     var i;
@@ -3050,10 +3155,21 @@
     ctx.moveTo(panelX + 12, groundY);
     ctx.lineTo(panelX + panelW - 12, groundY);
     ctx.stroke();
+    ctx.globalAlpha = 0.7 * fade;
+    ctx.strokeStyle = INK;
+    var domeX = panelX + panelW - 46;
+    drawSuperdome(ctx, domeX, groundY, s * 0.5);
+    ctx.globalAlpha = 0.85 * fade;
+    ctx.fillStyle = INK;
+    ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillText("Superdome", domeX - 22, groundY - 18);
     ctx.globalAlpha = 0.9 * fade;
     drawHome(ctx, houseX, groundY, s);
     drawDish(ctx, houseX + 58 * s, groundY, s);
+    drawStreetcar(ctx, panelX + 40, groundY, Math.min(0.7, s * 0.55));
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
+    ctx.strokeStyle = INK;
+    ctx.fillStyle = INK;
     ctx.fillStyle = INK;
     ctx.fillText("Home, New Orleans", panelX + 12, panelY + 18);
     var sat = { x: panelX + panelW * 0.62, y: panelY + 34 };
@@ -3062,7 +3178,7 @@
     ctx.strokeRect(sat.x + 7, sat.y - 1, 7, 3);
     var dish = { x: houseX + 68 * s, y: groundY - 16 * s };
     ctx.restore();
-    beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade);
+    beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade, true);
   }
 
   function drawShadow(ctx, cam) {
