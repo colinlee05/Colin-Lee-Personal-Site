@@ -1499,18 +1499,19 @@
       site(-580, drawHome, "Home, New Orleans", 84, 48);
       site(-500, drawDish, "", 0, 16);
       var homeP = coastSpot(cam, -580, 0);
+      var homeHalf = 31 * s * 1.28;
       var domeScale = Math.max(0.5, s * 0.62);
-      var domeHalf = 26 * domeScale;
-      var domeX = homeP.x - 34 - domeHalf;
-      if (domeX - domeHalf > 12) {
-        ctx.globalAlpha = 0.62;
+      var domeHalf = 37 * domeScale;
+      var domeX = homeP.x - homeHalf - domeHalf - 8;
+      if (domeX - domeHalf > 8) {
+        ctx.globalAlpha = 0.85;
         ctx.strokeStyle = INK;
         drawSuperdome(ctx, domeX, ground.y, domeScale);
       }
-      var carScale = 0.46;
-      var carX = homeP.x + 36;
-      var dishX = coastSpot(cam, -500, 0).x;
-      if (carX - 14 > homeP.x + 18 && carX + 16 < dishX - 6) {
+      var carScale = Math.max(0.4, s * 0.48);
+      var carHalf = 20 * carScale;
+      var carX = (domeX - domeHalf > 8 ? domeX - domeHalf : homeP.x - homeHalf) - carHalf - 8;
+      if (carX - carHalf > 8) {
         ctx.globalAlpha = 0.9;
         drawStreetcar(ctx, carX, ground.y, carScale);
       }
@@ -1599,46 +1600,105 @@
     ctx.lineTo(x + w * 0.6, y - story * 0.72);
     ctx.stroke();
     var railY = y - story * 0.62;
-    var beadX = x - w * 0.46;
+    var beadX = x - w * 0.48;
     var beads = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
     var bead;
     var prevFill = ctx.fillStyle;
-    for (bead = 0; bead < 6; bead++) {
+    ctx.strokeStyle = "#c6a15a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(beadX - 2 * s, railY);
+    ctx.lineTo(beadX + 28 * s, railY);
+    ctx.stroke();
+    for (bead = 0; bead < 7; bead++) {
+      var beadScale = s;
+      var drop = (3.2 + (bead % 2) * 2.2) * beadScale;
+      ctx.strokeStyle = beads[bead % 3];
+      ctx.beginPath();
+      ctx.moveTo(beadX + bead * 4.2 * beadScale, railY);
+      ctx.lineTo(beadX + bead * 4.2 * beadScale, railY + drop);
+      ctx.stroke();
       ctx.fillStyle = beads[bead % 3];
       ctx.beginPath();
-      ctx.arc(beadX + bead * 3.1 * s, railY + (2.2 + (bead % 2) * 1.5) * s, 1.25 * s, 0, Math.PI * 2);
+      ctx.arc(beadX + bead * 4.2 * beadScale, railY + drop + 1.6, Math.max(2.1, 2.3 * s), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.fillStyle = prevFill;
+    ctx.strokeStyle = INK;
   }
 
   function drawSuperdome(ctx, x, y, s) {
-    var w = 26 * s;
-    var h = 12 * s;
+    var w = 34 * s;
+    var h = 16 * s;
+    ctx.save();
+    ctx.fillStyle = "rgba(244,241,232,0.88)";
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x - w, y);
-    ctx.lineTo(x - w, y - h * 0.28);
-    ctx.quadraticCurveTo(x, y - h * 1.45, x + w, y - h * 0.28);
-    ctx.lineTo(x + w, y);
-    ctx.moveTo(x - w * 0.55, y);
-    ctx.quadraticCurveTo(x - w * 0.15, y - h * 1.1, x, y - h * 1.2);
+    ctx.moveTo(x - w, y - h * 0.15);
+    ctx.quadraticCurveTo(x, y - h * 1.55, x + w, y - h * 0.15);
+    ctx.quadraticCurveTo(x, y + h * 0.15, x - w, y - h * 0.15);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(x, y - h * 0.12, w * 1.08, h * 0.28, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 0.45, y - h * 0.2);
+    ctx.quadraticCurveTo(x, y - h * 1.15, x + w * 0.45, y - h * 0.2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawStreetcar(ctx, x, y, s) {
     ctx.save();
-    ctx.strokeStyle = "#2f8a5b";
-    ctx.lineWidth = 1.15;
-    var w = 36 * s;
-    var h = 14 * s;
-    ctx.strokeRect(x - w / 2, y - h, w, h);
-    ctx.strokeRect(x - w * 0.32, y - h + 3 * s, 7 * s, 5 * s);
-    ctx.strokeRect(x - w * 0.02, y - h + 3 * s, 7 * s, 5 * s);
+    var w = 54 * s;
+    var h = 18 * s;
+    ctx.strokeStyle = "#8a3030";
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.arc(x - w * 0.28, y, 2.1 * s, 0, Math.PI * 2);
-    ctx.arc(x + w * 0.28, y, 2.1 * s, 0, Math.PI * 2);
-    ctx.moveTo(x - 2 * s, y - h);
-    ctx.lineTo(x + 6 * s, y - h - 9 * s);
+    ctx.moveTo(x - w * 0.7, y - 1.5 * s);
+    ctx.lineTo(x + w * 0.7, y - 1.5 * s);
+    ctx.moveTo(x - w * 0.7, y + 1.4 * s);
+    ctx.lineTo(x + w * 0.7, y + 1.4 * s);
+    ctx.stroke();
+    ctx.fillStyle = "#2f8a5b";
+    ctx.strokeStyle = "#1f6b44";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + 3 * s, y);
+    ctx.lineTo(x - w / 2 + 3 * s, y - h + 3 * s);
+    ctx.quadraticCurveTo(x - w / 2, y - h - 2 * s, x - w / 2 + 8 * s, y - h - 1 * s);
+    ctx.lineTo(x + w / 2 - 8 * s, y - h - 1 * s);
+    ctx.quadraticCurveTo(x + w / 2, y - h - 2 * s, x + w / 2 - 3 * s, y - h + 3 * s);
+    ctx.lineTo(x + w / 2 - 3 * s, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = "#c44747";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + 4 * s, y - h * 0.46);
+    ctx.lineTo(x + w / 2 - 4 * s, y - h * 0.46);
+    ctx.moveTo(x - w / 2 + 4 * s, y - 2.4 * s);
+    ctx.lineTo(x + w / 2 - 4 * s, y - 2.4 * s);
+    ctx.stroke();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "#f4f1e8";
+    var win;
+    for (win = 0; win < 5; win++) {
+      ctx.strokeRect(x - w * 0.36 + win * w * 0.15, y - h + 3.2 * s, w * 0.1, h * 0.32);
+    }
+    ctx.strokeStyle = "#1f6b44";
+    ctx.beginPath();
+    ctx.arc(x - w * 0.28, y, 2.4 * s, 0, Math.PI * 2);
+    ctx.arc(x + w * 0.28, y, 2.4 * s, 0, Math.PI * 2);
+    ctx.moveTo(x, y - h - 1 * s);
+    ctx.lineTo(x + 8 * s, y - h - 12 * s);
+    ctx.moveTo(x - w * 0.55, y - h - 12 * s);
+    ctx.lineTo(x + w * 0.55, y - h - 12 * s);
     ctx.stroke();
     ctx.restore();
   }
@@ -2942,8 +3002,14 @@
       ctx.fill();
     }
     if (gate) {
-      var gx = mix(x0, x1, 0.2);
-      var gy = mix(y0, y1, 0.2);
+      var gx = mix(x0, x1, 0.28);
+      var gy = mix(y0, y1, 0.28);
+      var dx = x1 - x0;
+      var dy = y1 - y0;
+      var len = Math.hypot(dx, dy) || 1;
+      var nx = -dy / len;
+      var ny = dx / len;
+      if (ny > 0) { nx = -nx; ny = -ny; }
       ctx.globalAlpha = 0.92 * alpha;
       ctx.fillStyle = SKY;
       ctx.strokeStyle = INK;
@@ -2956,12 +3022,12 @@
       ctx.beginPath();
       ctx.arc(gx, gy - 0.4, 1.05, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha = 0.78 * alpha;
+      ctx.globalAlpha = 0.8 * alpha;
       ctx.fillStyle = INK;
       ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
       var gateLabel = "encrypted, end to end";
       var gateW = ctx.measureText(gateLabel).width;
-      ctx.fillText(gateLabel, gx - gateW / 2, gy + 16);
+      ctx.fillText(gateLabel, gx + nx * 22 - gateW / 2, gy + ny * 22);
     }
     ctx.restore();
   }
@@ -2984,13 +3050,13 @@
     ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1);
     ctx.globalAlpha = 0.22 * fade;
     var cloud;
-    for (cloud = 0; cloud < 4; cloud++) {
+    for (cloud = 0; cloud < 3; cloud++) {
       ctx.beginPath();
-      ctx.moveTo(panelX + 12, panelY + panelH * (0.72 + cloud * 0.05));
+      ctx.moveTo(panelX + 12, panelY + panelH * (0.58 + cloud * 0.045));
       ctx.bezierCurveTo(
-        panelX + panelW * 0.3, panelY + panelH * (0.68 + cloud * 0.04),
-        panelX + panelW * 0.6, panelY + panelH * (0.76 + cloud * 0.03),
-        panelX + panelW - 12, panelY + panelH * (0.71 + cloud * 0.05)
+        panelX + panelW * 0.3, panelY + panelH * (0.54 + cloud * 0.04),
+        panelX + panelW * 0.62, panelY + panelH * (0.62 + cloud * 0.03),
+        panelX + panelW - 12, panelY + panelH * (0.57 + cloud * 0.04)
       );
       ctx.stroke();
     }
@@ -3096,28 +3162,22 @@
     ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
     ctx.fillStyle = INK;
     var live = window.LiveFlight && window.LiveFlight.flight;
-    var maxLabel = Math.min(168, panelW * 0.46);
-    function fitLine(text, x, y) {
-      if (ctx.measureText(text).width <= maxLabel) {
-        ctx.fillText(text, x, y);
-        return y + 13;
-      }
-      var words = text.split(" ");
-      var line = "";
-      var n;
-      for (n = 0; n < words.length; n++) {
-        var trial = line ? line + " " + words[n] : words[n];
-        if (line && ctx.measureText(trial).width > maxLabel) {
-          ctx.fillText(line, x, y);
-          y += 13;
-          line = words[n];
-        } else line = trial;
-      }
-      if (line) ctx.fillText(line, x, y);
-      return y + 13;
+    var lines = live && live.line1
+      ? [live.line1, live.line2 || "Starlink-equipped airline"]
+      : ["Starlink Aviation · 35,000 ft"];
+    var labelSize = 11;
+    ctx.font = labelSize + "px IBM Plex Mono, ui-monospace, monospace";
+    var widest = 0;
+    var li;
+    for (li = 0; li < lines.length; li++) widest = Math.max(widest, ctx.measureText(lines[li]).width);
+    if (widest > panelW - 20) {
+      labelSize = 9;
+      ctx.font = labelSize + "px IBM Plex Mono, ui-monospace, monospace";
     }
-    var labelY = fitLine(live ? live.line1 : "35,000 ft", panelX + 10, panelY + 16);
-    if (live && live.line2) fitLine(live.line2, panelX + 10, labelY);
+    var baseY = panelY + panelH - 8;
+    for (li = lines.length - 1; li >= 0; li--) {
+      ctx.fillText(lines[li], panelX + 10, baseY - (lines.length - 1 - li) * (labelSize + 3));
+    }
     ctx.restore();
     beamPackets(ctx, sat.x, sat.y + 4, dome.x, dome.y, t, 0.4, fade, true);
     if (!cards) return;
@@ -3155,18 +3215,18 @@
     ctx.moveTo(panelX + 12, groundY);
     ctx.lineTo(panelX + panelW - 12, groundY);
     ctx.stroke();
-    ctx.globalAlpha = 0.7 * fade;
+    ctx.globalAlpha = 0.95 * fade;
     ctx.strokeStyle = INK;
-    var domeX = panelX + panelW - 46;
-    drawSuperdome(ctx, domeX, groundY, s * 0.5);
-    ctx.globalAlpha = 0.85 * fade;
-    ctx.fillStyle = INK;
-    ctx.font = "9px IBM Plex Mono, ui-monospace, monospace";
-    ctx.fillText("Superdome", domeX - 22, groundY - 18);
+    var domeX = panelX + panelW - 58;
+    drawSuperdome(ctx, domeX, groundY, Math.max(0.85, s * 0.72));
     ctx.globalAlpha = 0.9 * fade;
+    ctx.fillStyle = INK;
+    ctx.font = "10px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillText("Superdome", domeX - 28, groundY - 22);
+    ctx.globalAlpha = 0.95 * fade;
     drawHome(ctx, houseX, groundY, s);
-    drawDish(ctx, houseX + 58 * s, groundY, s);
-    drawStreetcar(ctx, panelX + 40, groundY, Math.min(0.7, s * 0.55));
+    drawDish(ctx, houseX + 62 * s, groundY, s);
+    drawStreetcar(ctx, panelX + 46, groundY, Math.max(0.85, s * 0.78));
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;

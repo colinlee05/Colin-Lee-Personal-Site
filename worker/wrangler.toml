@@ -1,0 +1,11 @@
+name = "colinlee-flight"
+main = "flight-proxy.js"
+compatibility_date = "2024-11-01"
+
+# Attach this Worker to the site's zone, then map /api/flight.
+# `wrangler deploy` prints the workers.dev URL. The route below
+# is what makes https://colinlee.me/api/flight hit this script.
+routes = [
+  { pattern = "colinlee.me/api/flight", zone_name = "colinlee.me" },
+  { pattern = "www.colinlee.me/api/flight", zone_name = "colinlee.me" }
+]

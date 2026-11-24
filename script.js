@@ -1646,48 +1646,43 @@
     } catch (err) { /* private mode */ }
   }
 
+  function placeName(lat, lon) {
+    if (typeof lat !== "number" || typeof lon !== "number") return "";
+    var ns = lat >= 0 ? "N" : "S";
+    var ew = lon >= 0 ? "E" : "W";
+    return Math.abs(lat).toFixed(1) + ns + " " + Math.abs(lon).toFixed(1) + ew;
+  }
+
   function loadLiveFlight() {
     try {
       var cached = JSON.parse(sessionStorage.getItem("live-flight") || "null");
-      if (cached && cached.flight && Date.now() - cached.at < 180000) {
+      if (cached && cached.flight && cached.flight.callsign && Date.now() - cached.at < 90000) {
         window.LiveFlight.flight = cached.flight;
         return;
       }
     } catch (err) { /* ignore a bad cache */ }
     var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, 4000);
-    fetch("https://opensky-network.org/api/states/all?lamin=24&lomin=-125&lamax=49&lomax=-66", { signal: ctrl.signal })
+    var timer = setTimeout(function () { ctrl.abort(); }, 3500);
+    fetch("/api/flight", { signal: ctrl.signal })
       .then(function (res) {
         if (!res.ok) throw new Error("status");
         return res.json();
       })
       .then(function (data) {
-        var states = (data && data.states) || [];
-        var prefixes = { HAL: 1, QTR: 1, BTI: 1, WJA: 1, UAL: 1, ASA: 1 };
-        var best = null;
-        var i;
-        for (i = 0; i < states.length; i++) {
-          var s = states[i];
-          if (!s || s[8]) continue;
-          var cs = String(s[1] || "").replace(/\s+/g, "");
-          if (!prefixes[cs.slice(0, 3)]) continue;
-          if (s[7] == null || s[7] < 2500 || s[6] == null || s[5] == null) continue;
-          if (!best || s[7] > best.altM) best = { callsign: cs, altM: s[7], lat: s[6], lon: s[5] };
-        }
-        if (!best) return;
-        var altFt = Math.round((best.altM * 3.28084) / 100) * 100;
-        var ns = best.lat >= 0 ? "N" : "S";
-        var ew = best.lon >= 0 ? "E" : "W";
+        if (!data || !data.callsign || data.alt_ft == null) return;
+        var alt = Number(data.alt_ft);
+        if (!isFinite(alt)) return;
+        var where = placeName(Number(data.lat), Number(data.lon));
         rememberFlight({
-          callsign: best.callsign,
-          altFt: altFt,
-          lat: best.lat,
-          lon: best.lon,
-          line1: "Live: " + best.callsign + " at " + altFt.toLocaleString("en-US") + " ft",
-          line2: "near " + Math.abs(best.lat).toFixed(1) + ns + " " + Math.abs(best.lon).toFixed(1) + ew + " · Starlink-equipped airline"
+          callsign: String(data.callsign),
+          altFt: alt,
+          lat: Number(data.lat),
+          lon: Number(data.lon),
+          line1: "Live: " + String(data.callsign) + " at " + alt.toLocaleString("en-US") + " ft",
+          line2: (where ? "near " + where + " · " : "") + "Starlink-equipped airline"
         });
       })
-      .catch(function () { /* keep the drawn airliner and its generic caption */ })
+      .catch(function () { /* the inset keeps its generic caption */ })
       .then(function () { clearTimeout(timer); });
   }
 
