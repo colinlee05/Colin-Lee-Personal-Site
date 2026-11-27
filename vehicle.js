@@ -91,42 +91,100 @@
     ctx.stroke();
   }
 
-  function drawJet(ctx, x, y, w, h) {
-    var set = global.TRACES && global.TRACES.jet;
-    if (!set) return false;
-    strokePaths(ctx, set, x, y, w, h, true, jetKeep);
-    var i;
-    var winW = w * 0.012;
-    var winH = h * 0.045;
-    var winY = y + h * 0.612;
-    for (i = 0; i < 22; i++) {
-      var u = 0.16 + i * 0.026;
-      if (u > 0.12 && u < 0.18) continue;
-      if (u > 0.74 && u < 0.82) continue;
-      if (Math.abs(u - 0.5) < 0.03) continue;
-      roundWin(ctx, x + (1 - u) * w - winW * 0.5, winY, winW, winH);
-    }
-    function door(u, top) {
-      ctx.strokeRect(x + (1 - u) * w, y + h * top, w * 0.014, h * 0.11);
-    }
-    door(0.145, 0.575);
-    door(0.78, 0.575);
-    function gearDoor(u) {
-      var gx = x + (1 - u) * w;
-      var gy = y + h * 0.69;
-      ctx.beginPath();
-      ctx.moveTo(gx - w * 0.02, gy);
-      ctx.lineTo(gx + w * 0.02, gy);
-      ctx.moveTo(gx - w * 0.012, gy + h * 0.012);
-      ctx.lineTo(gx + w * 0.012, gy + h * 0.012);
-      ctx.stroke();
-    }
-    gearDoor(0.22);
-    gearDoor(0.46);
+  var JET_FUSE = [
+    [0.058, 0.655], [0.078, 0.618], [0.11, 0.592], [0.18, 0.572], [0.32, 0.555],
+    [0.50, 0.542], [0.66, 0.530], [0.78, 0.522], [0.83, 0.515],
+    [0.88, 0.34], [0.93, 0.12], [0.962, 0.025], [0.978, 0.008],
+    [0.992, 0.06], [0.982, 0.28], [0.974, 0.46],
+    [0.99, 0.505], [0.96, 0.545], [0.93, 0.575], [0.90, 0.66],
+    [0.82, 0.725], [0.66, 0.728], [0.48, 0.732], [0.30, 0.748],
+    [0.16, 0.755], [0.09, 0.72], [0.062, 0.685]
+  ];
+  // Straight edges. u grows toward the tail; v grows downward.
+  // Root chord sits on the belly; the tip sweeps aft and down, then the winglet turns up.
+  // Swept quad. Root chord is thick enough that the trailing edge stays below the leading edge.
+  var JET_WING = [
+    [0.28, 0.745], [0.50, 0.815], [0.56, 0.860], [0.44, 0.800]
+  ];
+  // Intake ahead of the leading edge, pod under the inboard wing, clear of the low tip.
+  var JET_NACELLE = [
+    [0.18, 0.900], [0.20, 0.845], [0.32, 0.855], [0.42, 0.870],
+    [0.44, 0.905], [0.34, 0.955], [0.22, 0.950], [0.18, 0.915]
+  ];
+
+  function strokeClosed(ctx, pts, x, y, w, h) {
+    var n = pts.length;
+    function P(p) { return [x + (1 - p[0]) * w, y + p[1] * h]; }
+    var a = P(pts[0]);
     ctx.beginPath();
-    ctx.moveTo(x + (1 - 0.24) * w, y + h * 0.56);
-    ctx.quadraticCurveTo(x + (1 - 0.19) * w, y + h * 0.48, x + (1 - 0.14) * w, y + h * 0.56);
+    ctx.moveTo(a[0], a[1]);
+    var i;
+    for (i = 0; i < n; i++) {
+      var pm = P(pts[(i - 1 + n) % n]);
+      var p1 = P(pts[i]);
+      var p2 = P(pts[(i + 1) % n]);
+      var p3 = P(pts[(i + 2) % n]);
+      ctx.bezierCurveTo(
+        p1[0] + (p2[0] - pm[0]) / 6,
+        p1[1] + (p2[1] - pm[1]) / 6,
+        p2[0] - (p3[0] - p1[0]) / 6,
+        p2[1] - (p3[1] - p1[1]) / 6,
+        p2[0], p2[1]
+      );
+    }
+    ctx.closePath();
     ctx.stroke();
+  }
+
+  function strokePoly(ctx, pts, x, y, w, h) {
+    function P(p) { return [x + (1 - p[0]) * w, y + p[1] * h]; }
+    var a = P(pts[0]);
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]);
+    var i;
+    for (i = 1; i < pts.length; i++) {
+      var p = P(pts[i]);
+      ctx.lineTo(p[0], p[1]);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  function drawJet(ctx, x, y, w, h) {
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    strokeClosed(ctx, JET_FUSE, x, y, w, h);
+    strokePoly(ctx, JET_WING, x, y, w, h);
+    strokeClosed(ctx, JET_NACELLE, x, y, w, h);
+    function at(u, v) { return [x + (1 - u) * w, y + v * h]; }
+    ctx.beginPath();
+    ctx.moveTo(at(0.32, 0.762)[0], at(0.32, 0.762)[1]);
+    ctx.lineTo(at(0.30, 0.852)[0], at(0.30, 0.852)[1]);
+    ctx.moveTo(at(0.40, 0.792)[0], at(0.40, 0.792)[1]);
+    ctx.lineTo(at(0.38, 0.862)[0], at(0.38, 0.862)[1]);
+    ctx.stroke();
+    var winW = w * 0.011;
+    var winH = h * 0.04;
+    var i;
+    for (i = 0; i < 16; i++) {
+      var u = 0.18 + i * 0.034;
+      if (u > 0.46 && u < 0.52) continue;
+      roundWin(ctx, at(u, 0.595)[0] - winW * 0.5, at(u, 0.595)[1], winW, winH);
+    }
+    ctx.strokeRect(at(0.155, 0.575)[0], at(0.155, 0.575)[1], w * 0.012, h * 0.14);
+    ctx.strokeRect(at(0.78, 0.57)[0], at(0.78, 0.57)[1], w * 0.012, h * 0.14);
+    ctx.beginPath();
+    var r0 = at(0.24, 0.555);
+    var r1 = at(0.19, 0.50);
+    var r2 = at(0.14, 0.555);
+    ctx.moveTo(r0[0], r0[1]);
+    ctx.quadraticCurveTo(r1[0], r1[1], r2[0], r2[1]);
+    ctx.stroke();
+    ctx.save();
+    ctx.lineWidth = 0.75;
+    ctx.strokeRect(at(0.12, 0.738)[0], at(0.12, 0.738)[1], w * 0.016, h * 0.011);
+    ctx.strokeRect(at(0.68, 0.730)[0], at(0.68, 0.730)[1], w * 0.026, h * 0.011);
+    ctx.restore();
     return true;
   }
 
@@ -1891,172 +1949,177 @@
   }
 
   function drawHome(ctx, x, y, s) {
-    var x0 = x - 36 * s;
-    var y0 = y - 62 * s;
-    var w = 72 * s;
-    var h = 62 * s;
-    function X(u) { return x0 + u * w; }
-    function Y(v) { return y0 + v * h; }
+    var bodyW = 78 * s;
+    var bodyH = bodyW / 1.1;
+    var roofH = bodyH * 0.36;
+    var baseH = bodyH * 0.13;
+    var story = (bodyH - baseH) / 2;
+    var left = x - bodyW / 2;
+    var right = left + bodyW;
+    var ground = y;
+    var baseTop = ground - baseH;
+    var gallery = baseTop - story;
+    var eave = gallery - story;
+    var peak = eave - roofH;
     ctx.save();
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1.15;
+    ctx.lineJoin = "miter";
+    ctx.strokeRect(left, eave, bodyW, bodyH);
     ctx.beginPath();
-    ctx.moveTo(X(0.44), Y(0.02));
-    ctx.lineTo(X(0.15), Y(0.34));
-    ctx.lineTo(X(0.14), Y(0.66));
-    ctx.lineTo(X(0.02), Y(0.68));
-    ctx.lineTo(X(0.02), Y(0.8));
-    ctx.lineTo(X(0.13), Y(1));
-    ctx.lineTo(X(0.92), Y(1));
-    ctx.lineTo(X(0.93), Y(0.82));
-    ctx.lineTo(X(0.93), Y(0.48));
-    ctx.lineTo(X(0.96), Y(0.3));
-    ctx.lineTo(X(0.82), Y(0.22));
-    ctx.lineTo(X(0.44), Y(0.02));
+    ctx.moveTo(left, baseTop);
+    ctx.lineTo(right, baseTop);
+    ctx.moveTo(left, gallery);
+    ctx.lineTo(right, gallery);
+    ctx.moveTo(left, eave);
+    ctx.lineTo(x, peak);
+    ctx.lineTo(right, eave);
     ctx.stroke();
     var row;
-    ctx.globalAlpha = 0.55;
-    for (row = 0; row < 7; row++) {
-      var sy = Y(0.5 + row * 0.065);
+    for (row = 1; row <= 5; row++) {
+      var t = row / 6;
+      var yy = eave + (peak - eave) * t;
+      var half = (bodyW / 2) * (1 - t);
       ctx.beginPath();
-      ctx.moveTo(X(0.48), sy);
-      ctx.lineTo(X(0.9), sy);
+      ctx.moveTo(x - half, yy);
+      ctx.lineTo(x + half, yy);
+      var tick;
+      for (tick = -3; tick <= 3; tick++) {
+        var tx = x + tick * half * 0.28;
+        if (Math.abs(tx - x) < half - 2) {
+          ctx.moveTo(tx, yy);
+          ctx.lineTo(tx + bodyW * 0.015, yy + (peak - eave) * 0.08);
+        }
+      }
       ctx.stroke();
+    }
+    var cols = [0.12, 0.373, 0.627, 0.88];
+    var ci;
+    ctx.beginPath();
+    for (ci = 0; ci < 4; ci++) {
+      var cx = left + cols[ci] * bodyW;
+      ctx.moveTo(cx, baseTop);
+      ctx.lineTo(cx, gallery);
+      ctx.moveTo(cx, gallery);
+      ctx.lineTo(cx, eave);
+    }
+    ctx.stroke();
+    function rail(yRail, yFloor) {
+      var i;
+      ctx.beginPath();
+      for (i = 0; i < 3; i++) {
+        var a = left + cols[i] * bodyW;
+        var b = left + cols[i + 1] * bodyW;
+        ctx.moveTo(a, yRail);
+        ctx.lineTo(b, yRail);
+        ctx.moveTo((a + b) / 2, yFloor);
+        ctx.lineTo((a + b) / 2, yRail);
+      }
+      ctx.stroke();
+    }
+    rail(baseTop - story * 0.42, baseTop);
+    rail(gallery - story * 0.16, gallery);
+    function shutter(sx, sy, sw, sh) {
+      ctx.strokeRect(sx, sy, sw, sh);
+      var k;
+      ctx.beginPath();
+      for (k = 1; k <= 4; k++) {
+        var ly = sy + sh * k / 5;
+        ctx.moveTo(sx, ly);
+        ctx.lineTo(sx + sw, ly);
+      }
+      ctx.stroke();
+    }
+    function windowAt(cx, top, ww, hh) {
+      var shw = ww * 0.42;
+      shutter(cx - ww / 2 - shw - 1, top, shw, hh);
+      shutter(cx + ww / 2 + 1, top, shw, hh);
+      ctx.strokeRect(cx - ww / 2, top, ww, hh);
+      ctx.beginPath();
+      ctx.moveTo(cx, top);
+      ctx.lineTo(cx, top + hh);
+      ctx.moveTo(cx - ww / 2, top + hh / 2);
+      ctx.lineTo(cx + ww / 2, top + hh / 2);
+      ctx.stroke();
+    }
+    var winW = bodyW * 0.09;
+    var winH = story * 0.46;
+    windowAt(left + bodyW * 0.246, gallery + story * 0.22, winW, winH);
+    windowAt(left + bodyW * 0.754, gallery + story * 0.22, winW, winH);
+    windowAt(left + bodyW * 0.246, eave + story * 0.28, winW, winH);
+    windowAt(left + bodyW * 0.5, eave + story * 0.28, winW, winH);
+    windowAt(left + bodyW * 0.754, eave + story * 0.28, winW, winH);
+    var doorW = bodyW * 0.11;
+    var doorH = story * 0.62;
+    var doorX = x - doorW / 2;
+    var doorY = baseTop - doorH;
+    ctx.strokeRect(doorX, doorY, doorW, doorH);
+    ctx.strokeRect(doorX, doorY - story * 0.12, doorW, story * 0.12);
+    ctx.beginPath();
+    ctx.moveTo(x, doorY);
+    ctx.lineTo(x, baseTop);
+    ctx.moveTo(doorX + doorW * 0.72, baseTop - doorH * 0.48);
+    ctx.lineTo(doorX + doorW * 0.84, baseTop - doorH * 0.48);
+    ctx.stroke();
+    ctx.globalAlpha = 0.55;
+    function siding(yLine, holes) {
+      var cuts = holes.slice().sort(function (a, b) { return a[0] - b[0]; });
+      var xCursor = left;
+      var i;
+      ctx.beginPath();
+      for (i = 0; i < cuts.length; i++) {
+        if (cuts[i][0] > xCursor) {
+          ctx.moveTo(xCursor, yLine);
+          ctx.lineTo(cuts[i][0], yLine);
+        }
+        xCursor = Math.max(xCursor, cuts[i][1]);
+      }
+      if (xCursor < right) {
+        ctx.moveTo(xCursor, yLine);
+        ctx.lineTo(right, yLine);
+      }
+      ctx.stroke();
+    }
+    var lowHoles = [
+      [left + bodyW * 0.246 - winW * 0.95, left + bodyW * 0.246 + winW * 0.95],
+      [x - doorW * 0.7, x + doorW * 0.7],
+      [left + bodyW * 0.754 - winW * 0.95, left + bodyW * 0.754 + winW * 0.95]
+    ];
+    var upHoles = [
+      [left + bodyW * 0.246 - winW * 0.95, left + bodyW * 0.246 + winW * 0.95],
+      [x - winW * 0.95, x + winW * 0.95],
+      [left + bodyW * 0.754 - winW * 0.95, left + bodyW * 0.754 + winW * 0.95]
+    ];
+    var band;
+    for (band = 1; band <= 4; band++) {
+      siding(baseTop - story * band / 5, lowHoles);
+      siding(gallery - story * band / 5, upHoles);
     }
     ctx.globalAlpha = 1;
-    function framed(wx, wy, ww, hh) {
-      ctx.strokeRect(wx, wy, ww, hh);
-      ctx.beginPath();
-      ctx.moveTo(wx + ww / 2, wy);
-      ctx.lineTo(wx + ww / 2, wy + hh);
-      ctx.moveTo(wx, wy + hh / 2);
-      ctx.lineTo(wx + ww, wy + hh / 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(wx - ww * 0.22, wy);
-      ctx.lineTo(wx - ww * 0.22, wy + hh);
-      ctx.moveTo(wx + ww + ww * 0.22, wy);
-      ctx.lineTo(wx + ww + ww * 0.22, wy + hh);
-      ctx.stroke();
+    var step;
+    for (step = 0; step < 3; step++) {
+      var sw = bodyW * (0.2 - step * 0.03);
+      var sy = ground - baseH * (step + 1) / 3;
+      ctx.strokeRect(x - sw / 2, sy, sw, baseH / 3);
     }
-    framed(X(0.5), Y(0.4), w * 0.1, h * 0.14);
-    framed(X(0.72), Y(0.58), w * 0.1, h * 0.16);
-    ctx.strokeRect(X(0.28), Y(0.62), w * 0.1, h * 0.28);
-    ctx.beginPath();
-    ctx.moveTo(X(0.33), Y(0.62));
-    ctx.lineTo(X(0.33), Y(0.9));
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(X(0.16), Y(0.36));
-    ctx.lineTo(X(0.16), Y(0.78));
-    ctx.moveTo(X(0.32), Y(0.28));
-    ctx.lineTo(X(0.32), Y(0.78));
-    ctx.moveTo(X(0.16), Y(0.72));
-    ctx.lineTo(X(0.4), Y(0.72));
-    ctx.stroke();
     var colors = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
     var strand;
     for (strand = 0; strand < 3; strand++) {
       ctx.strokeStyle = colors[strand];
-      ctx.beginPath();
-      var b;
-      for (b = 0; b <= 7; b++) {
-        var bx = X(0.17 + strand * 0.07 + b * 0.028);
-        var sag = Math.sin((b / 7) * Math.PI) * h * 0.06;
-        if (b === 0) ctx.moveTo(bx, Y(0.72) + sag);
-        else ctx.lineTo(bx, Y(0.72) + sag);
-      }
-      ctx.stroke();
-    }
-    ctx.strokeStyle = INK;
-    ctx.restore();
-    return;
-    var w = 74 * s;
-    var story = 16 * s;
-    var h = story * 2;
-    ctx.save();
-    ctx.lineWidth = 1.15;
-    ctx.strokeStyle = INK;
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.5, y - h);
-    ctx.lineTo(x, y - h - 14 * s);
-    ctx.lineTo(x + w * 0.5, y - h);
-    ctx.moveTo(x - w * 0.4, y - h);
-    ctx.lineTo(x - w * 0.4, y);
-    ctx.moveTo(x + w * 0.4, y - h);
-    ctx.lineTo(x + w * 0.4, y);
-    ctx.moveTo(x - w * 0.4, y - story);
-    ctx.lineTo(x + w * 0.4, y - story);
-    var row;
-    for (row = 1; row <= 3; row++) {
-      ctx.moveTo(x - w * 0.4, y - row * (story * 0.26));
-      ctx.lineTo(x + w * 0.4, y - row * (story * 0.26));
-      ctx.moveTo(x - w * 0.4, y - story - row * (story * 0.22));
-      ctx.lineTo(x + w * 0.4, y - story - row * (story * 0.22));
-    }
-    var sh;
-    for (sh = 0; sh < 5; sh++) {
-      var sy = y - h - 2 * s - sh * 2.1 * s;
-      var inset = (sh + 1) * w * 0.07;
-      ctx.moveTo(x - w * 0.46 + inset, sy);
-      ctx.lineTo(x + w * 0.46 - inset, sy);
-    }
-    ctx.stroke();
-    function windowFrame(wx, wy, ww, hh) {
-      ctx.strokeRect(wx, wy, ww, hh);
-      ctx.beginPath();
-      ctx.moveTo(wx + ww / 2, wy);
-      ctx.lineTo(wx + ww / 2, wy + hh);
-      ctx.moveTo(wx, wy + hh / 2);
-      ctx.lineTo(wx + ww, wy + hh / 2);
-      ctx.stroke();
-    }
-    windowFrame(x - w * 0.3, y - h + 3.2 * s, 9 * s, 7 * s);
-    windowFrame(x + w * 0.05, y - h + 3.2 * s, 9 * s, 7 * s);
-    windowFrame(x + w * 0.16, y - story + 3 * s, 8 * s, 7 * s);
-    ctx.strokeRect(x - w * 0.08, y - story + 2 * s, 7 * s, story - 2 * s);
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.05, y - story + 2 * s);
-    ctx.lineTo(x - w * 0.05, y);
-    ctx.moveTo(x - w * 0.08, y - story * 0.45);
-    ctx.lineTo(x - w * 0.01, y - story * 0.45);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.46, y);
-    ctx.lineTo(x - w * 0.46, y - story * 0.15);
-    ctx.moveTo(x - w * 0.46, y - story * 0.62);
-    ctx.lineTo(x - w * 0.12, y - story * 0.62);
-    ctx.lineTo(x - w * 0.12, y);
-    ctx.moveTo(x - w * 0.34, y);
-    ctx.lineTo(x - w * 0.34, y - story * 0.62);
-    ctx.stroke();
-    ctx.strokeRect(x + w * 0.4, y - story * 0.85, w * 0.22, story * 0.85);
-    ctx.beginPath();
-    ctx.moveTo(x + w * 0.4, y - story * 0.42);
-    ctx.lineTo(x + w * 0.62, y - story * 0.42);
-    ctx.moveTo(x + w * 0.46, y - story * 0.72);
-    ctx.lineTo(x + w * 0.58, y - story * 0.72);
-    ctx.stroke();
-    var railY = y - story * 0.62;
-    var beadX = x - w * 0.44;
-    var colors = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
-    var strand;
-    for (strand = 0; strand < 3; strand++) {
-      ctx.strokeStyle = colors[strand];
-      ctx.beginPath();
-      var b;
-      for (b = 0; b <= 8; b++) {
-        var bx = beadX + strand * 7 * s + b * 3.1 * s;
-        var sag = Math.sin((b / 8) * Math.PI) * (4.5 + strand) * s;
-        if (b === 0) ctx.moveTo(bx, railY + sag);
-        else ctx.lineTo(bx, railY + sag);
-      }
-      ctx.stroke();
-      for (b = 1; b < 8; b++) {
-        var cx = beadX + strand * 7 * s + b * 3.1 * s;
-        var cy = railY + Math.sin((b / 8) * Math.PI) * (4.5 + strand) * s;
+      var gap;
+      for (gap = 0; gap < 3; gap++) {
+        var a = left + cols[gap] * bodyW;
+        var b = left + cols[gap + 1] * bodyW;
+        var railY = gallery - story * 0.16;
         ctx.beginPath();
-        ctx.arc(cx, cy, Math.max(1.1, 1.35 * s), 0, Math.PI * 2);
+        var bstep;
+        for (bstep = 0; bstep <= 8; bstep++) {
+          var u = bstep / 8;
+          var bx = a + (b - a) * u;
+          var sag = Math.sin(u * Math.PI) * story * (0.1 + strand * 0.03);
+          if (bstep === 0) ctx.moveTo(bx, railY + sag);
+          else ctx.lineTo(bx, railY + sag);
+        }
         ctx.stroke();
       }
     }
@@ -3944,9 +4007,26 @@
       panelY = Math.max(panelY, geo.cy + geo.radius + 16);
       panelH = Math.max(220, Math.min(panelH, model.h - panelY - 210));
     }
-    var s = Math.min(2.35, Math.max(1.2, panelW / 430));
-    var groundY = panelY + panelH - 28;
-    var houseX = panelX + panelW * 0.42;
+    var groundY = panelY + panelH - Math.max(14, panelH * 0.045);
+    var houseTotal = panelH * 0.44;
+    var houseS = houseTotal / (78 / 1.1 * 1.36);
+    var houseW = 78 * houseS;
+    var houseX = panelX + panelW * 0.46;
+    var carS = houseTotal * 0.34 / 28;
+    var carW = 96 * carS;
+    var carX = panelX + 16 + carW / 2;
+    var houseLeft = houseX - houseW / 2;
+    if (carX + carW / 2 > houseLeft - 8) {
+      carW = Math.max(48, houseLeft - 8 - (panelX + 16));
+      carS = carW / 96;
+      carX = panelX + 16 + carW / 2;
+    }
+    var domeS = houseTotal * 0.22 / 28;
+    var domeW = 80 * domeS;
+    var domeX = panelX + panelW - 14 - domeW / 2;
+    var farY = groundY - panelH * 0.11;
+    var dishS = Math.max(0.85, houseS * 0.95);
+    var dishX = Math.min(houseX + houseW / 2 + 22 * dishS, domeX - domeW / 2 - 18);
     ctx.save();
     ctx.globalAlpha = 0.96 * fade;
     ctx.fillStyle = "#12161e";
@@ -3958,20 +4038,21 @@
     ctx.globalAlpha = 0.45 * fade;
     ctx.beginPath();
     ctx.moveTo(panelX + 12, groundY);
-    ctx.lineTo(panelX + panelW - 12, groundY);
+    ctx.lineTo(panelX + panelW * 0.72, groundY);
+    ctx.moveTo(panelX + panelW * 0.58, farY);
+    ctx.lineTo(panelX + panelW - 12, farY);
     ctx.stroke();
     ctx.globalAlpha = 0.95 * fade;
     ctx.strokeStyle = INK;
-    var domeX = panelX + panelW * 0.84;
-    drawSuperdome(ctx, domeX, groundY, Math.min(1.7, s * 0.7));
+    drawSuperdome(ctx, domeX, farY, domeS);
     ctx.globalAlpha = 0.9 * fade;
     ctx.fillStyle = INK;
     ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
-    ctx.fillText("Superdome", domeX - 36, groundY - 36 * Math.min(s, 1.6));
+    ctx.fillText("Superdome", domeX - 36, farY - 28 * domeS - 8);
     ctx.globalAlpha = 0.95 * fade;
-    drawHome(ctx, houseX, groundY, s * 0.92);
-    drawDish(ctx, houseX + 78 * s, groundY, s * 1.15);
-    drawStreetcar(ctx, panelX + panelW * 0.18, groundY, Math.min(2.05, s * 0.95));
+    drawStreetcar(ctx, carX, groundY, carS);
+    drawHome(ctx, houseX, groundY, houseS);
+    drawDish(ctx, dishX, groundY, dishS);
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
@@ -3981,7 +4062,7 @@
     ctx.strokeRect(sat.x - 6, sat.y - 3, 12, 5);
     ctx.strokeRect(sat.x - 14, sat.y - 1, 7, 3);
     ctx.strokeRect(sat.x + 7, sat.y - 1, 7, 3);
-    var dish = { x: houseX + 78 * s, y: groundY - 18 * s };
+    var dish = { x: dishX, y: groundY - 16 * dishS };
     ctx.restore();
     beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade, true, {
       l: panelX + 8,
