@@ -1021,6 +1021,7 @@
     const py = reduce ? 0 : mouse.y * 1.4;
     ctx.globalAlpha = 1;
     if (model) Vehicle.paint(ctx, model, now);
+    syncLabels();
     syncMission(now);
     if (!Vehicle.active(model)) {
       drawScreen(now);
@@ -1163,6 +1164,36 @@
     var box = document.getElementById("payloads");
     if (box) box.replaceChildren();
     if (ctx && geo) draw(performance.now());
+  }
+
+  function syncLabels() {
+    var spots = model && model._labels;
+    var mission = html.classList.contains("mission");
+    var cramped = html.classList.contains("cramped");
+    var els = document.querySelectorAll(".callouts [data-anchor]");
+    var used = {};
+    Array.prototype.forEach.call(els, function (el) {
+      if (!mission || cramped) {
+        el.style.opacity = "";
+        return;
+      }
+      var name = el.dataset.anchor;
+      var spot = spots && spots[name];
+      var pad = spots && spots._pad || 0;
+      var n = used[name] || 0;
+      used[name] = n + 1;
+      if (!spot || pad < 0.05) {
+        el.style.opacity = "0";
+        return;
+      }
+      var side = el.dataset.side === "left" ? -1 : 1;
+      var x = spot.x + (side < 0 ? -el.offsetWidth - 10 : 12);
+      var y = spot.y - el.offsetHeight * 0.5 + n * (el.offsetHeight + 4);
+      var on = x > 6 && y > 52 && x + el.offsetWidth < view.w - 6 && y + el.offsetHeight < view.h - 24;
+      el.style.left = Math.round(Math.max(6, x)) + "px";
+      el.style.top = Math.round(y) + "px";
+      el.style.opacity = on ? String(Math.min(1, pad)) : "0";
+    });
   }
 
   function syncMission(now) {

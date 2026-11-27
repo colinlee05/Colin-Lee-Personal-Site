@@ -23,22 +23,109 @@
     "Other sites and projects: github.com/colinlee05. LinkedIn: colinlee05."
   ];
 
-  function drawTraced(ctx, name, x, y, w, h, flipX) {
-    var set = global.TRACES && global.TRACES[name];
-    if (!set || !set.length) return false;
+  function pathBox(path) {
+    var x0 = 1e9;
+    var x1 = -1e9;
+    var y0 = 1e9;
+    var y1 = -1e9;
+    var i;
+    for (i = 0; i < path.length; i++) {
+      if (path[i][0] < x0) x0 = path[i][0];
+      if (path[i][0] > x1) x1 = path[i][0];
+      if (path[i][1] < y0) y0 = path[i][1];
+      if (path[i][1] > y1) y1 = path[i][1];
+    }
+    return { x0: x0, x1: x1, y0: y0, y1: y1, sx: x1 - x0, sy: y1 - y0 };
+  }
+
+  function jetKeep(path) {
+    var b = pathBox(path);
+    if (b.y0 > 0.9) return false;
+    if (b.y0 > 0.82) return false;
+    if (b.y1 > 0.76 && b.sx < 0.02 && b.sy > 0.04) return false;
+    if (b.y0 >= 0.6 && b.y1 <= 0.71 && b.sx < 0.03 && b.sy < 0.055) return false;
+    if (b.y0 < 0.5 && b.x0 > 0.5 && b.x1 < 0.7 && b.sx < 0.08) return false;
+    return true;
+  }
+
+  function strokePaths(ctx, paths, x, y, w, h, flipX, keep) {
     ctx.beginPath();
     var i;
     var k;
-    for (i = 0; i < set.length; i++) {
-      var p = set[i];
+    var drawn = false;
+    for (i = 0; i < paths.length; i++) {
+      var p = paths[i];
       if (!p || p.length < 2) continue;
+      if (keep && !keep(p)) continue;
       var x0 = flipX ? 1 - p[0][0] : p[0][0];
       ctx.moveTo(x + x0 * w, y + p[0][1] * h);
       for (k = 1; k < p.length; k++) {
         var xx = flipX ? 1 - p[k][0] : p[k][0];
         ctx.lineTo(x + xx * w, y + p[k][1] * h);
       }
+      drawn = true;
     }
+    if (drawn) ctx.stroke();
+    return drawn;
+  }
+
+  function drawTraced(ctx, name, x, y, w, h, flipX) {
+    var set = global.TRACES && global.TRACES[name];
+    if (!set || !set.length) return false;
+    return strokePaths(ctx, set, x, y, w, h, flipX);
+  }
+
+  function roundWin(ctx, x, y, w, h) {
+    var r = Math.min(w, h) * 0.45;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  function drawJet(ctx, x, y, w, h) {
+    var set = global.TRACES && global.TRACES.jet;
+    if (!set) return false;
+    strokePaths(ctx, set, x, y, w, h, true, jetKeep);
+    var i;
+    var winW = w * 0.012;
+    var winH = h * 0.045;
+    var winY = y + h * 0.612;
+    for (i = 0; i < 22; i++) {
+      var u = 0.16 + i * 0.026;
+      if (u > 0.12 && u < 0.18) continue;
+      if (u > 0.74 && u < 0.82) continue;
+      if (Math.abs(u - 0.5) < 0.03) continue;
+      roundWin(ctx, x + (1 - u) * w - winW * 0.5, winY, winW, winH);
+    }
+    function door(u, top) {
+      ctx.strokeRect(x + (1 - u) * w, y + h * top, w * 0.014, h * 0.11);
+    }
+    door(0.145, 0.575);
+    door(0.78, 0.575);
+    function gearDoor(u) {
+      var gx = x + (1 - u) * w;
+      var gy = y + h * 0.69;
+      ctx.beginPath();
+      ctx.moveTo(gx - w * 0.02, gy);
+      ctx.lineTo(gx + w * 0.02, gy);
+      ctx.moveTo(gx - w * 0.012, gy + h * 0.012);
+      ctx.lineTo(gx + w * 0.012, gy + h * 0.012);
+      ctx.stroke();
+    }
+    gearDoor(0.22);
+    gearDoor(0.46);
+    ctx.beginPath();
+    ctx.moveTo(x + (1 - 0.24) * w, y + h * 0.56);
+    ctx.quadraticCurveTo(x + (1 - 0.19) * w, y + h * 0.48, x + (1 - 0.14) * w, y + h * 0.56);
     ctx.stroke();
     return true;
   }
@@ -1366,6 +1453,35 @@
     return !!(model && model.mission);
   }
 
+  function labelAnchors(model, pose) {
+    var cam = pose.cam || (pose.landCam && pose.landShow > 0.5 ? pose.landCam : null);
+    var spots = {};
+    if (!cam) return spots;
+    function coast(meters) {
+      var pad = project({ x: 0, y: 0, z: 0 }, cam);
+      var p = coastSpot(cam, meters, 0);
+      return { x: p.x, y: pad.y - 36 };
+    }
+    spots.home = coast(-580);
+    spots.stadium = coast(-330);
+    spots.memorial = coast(-190);
+    spots.dish = coast(-500);
+    spots.office = coast(190);
+    if (pose.ship && pose.worldAlpha > 0.2) {
+      spots.ship = project(xform({ x: 0, y: SHIP, z: 0 }, pose.ship), cam);
+    }
+    if (model.ui && model.ui.comp && pose.worldAlpha > 0.45) {
+      var c = model.ui.comp;
+      spots.terminal = { x: c.x + c.w * 0.2, y: c.y - 8 };
+      spots.keys = { x: c.x + c.w * 0.55, y: c.y + c.h * 0.2 };
+    }
+    spots._pad = (pose.worldAlpha || 0) * (pose.padFade == null ? 1 : pose.padFade);
+    if ((pose.earthAlpha || 0) > 0.22) spots._pad = 0;
+    if ((pose.landShow || 0) > 0.22) spots._pad = 0;
+    if ((pose.t || 0) > 119 && (pose.t || 0) < 147) spots._pad = 0;
+    return spots;
+  }
+
   function paint(ctx, model, now) {
     var pose = model.mission ? poseAt(model, missionSeconds(model, now)) : padPose();
     if (pose.done) {
@@ -1390,6 +1506,8 @@
     }
     if (pose.earthAlpha > 0.004) drawEarth(fadeCtx(ctx, pose.earthAlpha), model, pose);
     ctx.restore();
+    model._labels = labelAnchors(model, pose);
+    ctx.globalAlpha = 1;
     ctx.globalAlpha = 1;
   }
 
@@ -1507,8 +1625,8 @@
       p.y = ground.y;
       var hw = (half || 36) * s;
       if (p.x - hw < 8 || p.x + hw > model.w - 8) return;
-      ctx.globalAlpha = 0.62;
-      draw(ctx, p.x, p.y, s * 1.28);
+      ctx.globalAlpha = 0.9;
+      draw(ctx, p.x, p.y, Math.max(s, 0.85) * 1.85);
       if (label && showLabels) {
         ctx.globalAlpha = 0.72;
         ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
@@ -1584,7 +1702,54 @@
   }
 
   function drawStadium(ctx, x, y, s) {
-    if (drawTraced(ctx, "stadium", x - 78 * s, y - 46 * s, 156 * s, 50 * s)) return;
+    var x0 = x - 78 * s;
+    var y0 = y - 48 * s;
+    var w = 156 * s;
+    var h = 52 * s;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w * 0.05, y0 + h * 0.46);
+    ctx.lineTo(x0 + w * 0.05, y0 + h);
+    ctx.lineTo(x0 + w * 0.98, y0 + h);
+    ctx.lineTo(x0 + w * 0.98, y0 + h * 0.62);
+    ctx.lineTo(x0 + w * 0.08, y0 + h * 0.22);
+    ctx.closePath();
+    ctx.stroke();
+    var deck;
+    for (deck = 1; deck <= 3; deck++) {
+      var t = deck / 4;
+      ctx.beginPath();
+      ctx.moveTo(x0 + w * (0.08 + t * 0.04), y0 + h * (0.28 + t * 0.16));
+      ctx.lineTo(x0 + w * (0.94 - t * 0.02), y0 + h * (0.58 + t * 0.08));
+      ctx.stroke();
+    }
+    var bay;
+    ctx.globalAlpha = 0.7;
+    for (bay = 0; bay < 6; bay++) {
+      var bx = x0 + w * (0.16 + bay * 0.13);
+      ctx.strokeRect(bx, y0 + h * 0.58, w * 0.08, h * 0.28);
+    }
+    ctx.globalAlpha = 1;
+    function mast(mx) {
+      ctx.beginPath();
+      ctx.moveTo(mx, y0 + h * 0.24);
+      ctx.lineTo(mx, y0 + h * 0.02);
+      ctx.moveTo(mx - w * 0.035, y0 + h * 0.06);
+      ctx.lineTo(mx + w * 0.035, y0 + h * 0.06);
+      ctx.moveTo(mx - w * 0.035, y0 + h * 0.06);
+      ctx.lineTo(mx - w * 0.035, y0 + h * 0.12);
+      ctx.moveTo(mx + w * 0.035, y0 + h * 0.06);
+      ctx.lineTo(mx + w * 0.035, y0 + h * 0.12);
+      ctx.stroke();
+    }
+    mast(x0 + w * 0.18);
+    mast(x0 + w * 0.4);
+    mast(x0 + w * 0.62);
+    mast(x0 + w * 0.82);
+    ctx.restore();
+    return;
     var w = 96 * s;
     var bowl = 30 * s;
     ctx.save();
@@ -1635,7 +1800,48 @@
   }
 
   function drawMemorial(ctx, x, y, s) {
-    if (drawTraced(ctx, "tower", x - 16 * s, y - 78 * s, 32 * s, 78 * s)) return;
+    var x0 = x - 16 * s;
+    var y0 = y - 82 * s;
+    var w = 32 * s;
+    var h = 82 * s;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w * 0.18, y0 + h);
+    ctx.lineTo(x0 + w * 0.28, y0 + h * 0.18);
+    ctx.lineTo(x0 + w * 0.72, y0 + h * 0.18);
+    ctx.lineTo(x0 + w * 0.82, y0 + h);
+    ctx.moveTo(x0 + w * 0.22, y0 + h * 0.18);
+    ctx.quadraticCurveTo(x0 + w * 0.5, y0 + h * 0.02, x0 + w * 0.78, y0 + h * 0.18);
+    ctx.stroke();
+    var course;
+    for (course = 1; course <= 5; course++) {
+      var cy = y0 + h * (0.28 + course * 0.1);
+      ctx.beginPath();
+      ctx.moveTo(x0 + w * 0.24, cy);
+      ctx.lineTo(x0 + w * 0.76, cy);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(x0 + w * 0.5, y0 + h * 0.48, Math.min(w, h) * 0.16, 0, Math.PI * 2);
+    ctx.moveTo(x0 + w * 0.5, y0 + h * 0.48);
+    ctx.lineTo(x0 + w * 0.5, y0 + h * 0.4);
+    ctx.moveTo(x0 + w * 0.5, y0 + h * 0.48);
+    ctx.lineTo(x0 + w * 0.6, y0 + h * 0.52);
+    ctx.stroke();
+    function arch(ax) {
+      ctx.beginPath();
+      ctx.moveTo(ax - w * 0.08, y0 + h * 0.18);
+      ctx.lineTo(ax - w * 0.08, y0 + h * 0.1);
+      ctx.quadraticCurveTo(ax, y0 + h * 0.05, ax + w * 0.08, y0 + h * 0.1);
+      ctx.lineTo(ax + w * 0.08, y0 + h * 0.18);
+      ctx.stroke();
+    }
+    arch(x0 + w * 0.36);
+    arch(x0 + w * 0.64);
+    ctx.restore();
+    return;
     var w = 11 * s;
     var h = 78 * s;
     ctx.save();
@@ -1685,7 +1891,86 @@
   }
 
   function drawHome(ctx, x, y, s) {
-    if (drawTraced(ctx, "house", x - 34 * s, y - 58 * s, 68 * s, 58 * s)) return;
+    var x0 = x - 36 * s;
+    var y0 = y - 62 * s;
+    var w = 72 * s;
+    var h = 62 * s;
+    function X(u) { return x0 + u * w; }
+    function Y(v) { return y0 + v * h; }
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(X(0.44), Y(0.02));
+    ctx.lineTo(X(0.15), Y(0.34));
+    ctx.lineTo(X(0.14), Y(0.66));
+    ctx.lineTo(X(0.02), Y(0.68));
+    ctx.lineTo(X(0.02), Y(0.8));
+    ctx.lineTo(X(0.13), Y(1));
+    ctx.lineTo(X(0.92), Y(1));
+    ctx.lineTo(X(0.93), Y(0.82));
+    ctx.lineTo(X(0.93), Y(0.48));
+    ctx.lineTo(X(0.96), Y(0.3));
+    ctx.lineTo(X(0.82), Y(0.22));
+    ctx.lineTo(X(0.44), Y(0.02));
+    ctx.stroke();
+    var row;
+    ctx.globalAlpha = 0.55;
+    for (row = 0; row < 7; row++) {
+      var sy = Y(0.5 + row * 0.065);
+      ctx.beginPath();
+      ctx.moveTo(X(0.48), sy);
+      ctx.lineTo(X(0.9), sy);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    function framed(wx, wy, ww, hh) {
+      ctx.strokeRect(wx, wy, ww, hh);
+      ctx.beginPath();
+      ctx.moveTo(wx + ww / 2, wy);
+      ctx.lineTo(wx + ww / 2, wy + hh);
+      ctx.moveTo(wx, wy + hh / 2);
+      ctx.lineTo(wx + ww, wy + hh / 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(wx - ww * 0.22, wy);
+      ctx.lineTo(wx - ww * 0.22, wy + hh);
+      ctx.moveTo(wx + ww + ww * 0.22, wy);
+      ctx.lineTo(wx + ww + ww * 0.22, wy + hh);
+      ctx.stroke();
+    }
+    framed(X(0.5), Y(0.4), w * 0.1, h * 0.14);
+    framed(X(0.72), Y(0.58), w * 0.1, h * 0.16);
+    ctx.strokeRect(X(0.28), Y(0.62), w * 0.1, h * 0.28);
+    ctx.beginPath();
+    ctx.moveTo(X(0.33), Y(0.62));
+    ctx.lineTo(X(0.33), Y(0.9));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(X(0.16), Y(0.36));
+    ctx.lineTo(X(0.16), Y(0.78));
+    ctx.moveTo(X(0.32), Y(0.28));
+    ctx.lineTo(X(0.32), Y(0.78));
+    ctx.moveTo(X(0.16), Y(0.72));
+    ctx.lineTo(X(0.4), Y(0.72));
+    ctx.stroke();
+    var colors = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
+    var strand;
+    for (strand = 0; strand < 3; strand++) {
+      ctx.strokeStyle = colors[strand];
+      ctx.beginPath();
+      var b;
+      for (b = 0; b <= 7; b++) {
+        var bx = X(0.17 + strand * 0.07 + b * 0.028);
+        var sag = Math.sin((b / 7) * Math.PI) * h * 0.06;
+        if (b === 0) ctx.moveTo(bx, Y(0.72) + sag);
+        else ctx.lineTo(bx, Y(0.72) + sag);
+      }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = INK;
+    ctx.restore();
+    return;
     var w = 74 * s;
     var story = 16 * s;
     var h = story * 2;
@@ -1780,7 +2065,48 @@
   }
 
   function drawSuperdome(ctx, x, y, s) {
-    if (drawTraced(ctx, "dome", x - 36 * s, y - 22 * s, 72 * s, 22 * s)) return;
+    var x0 = x - 40 * s;
+    var y0 = y - 28 * s;
+    var w = 80 * s;
+    var h = 28 * s;
+    ctx.save();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.15;
+    ctx.beginPath();
+    ctx.moveTo(x0 + w * 0.06, y0 + h * 0.72);
+    ctx.quadraticCurveTo(x0 + w * 0.5, y0 + h * 0.02, x0 + w * 0.94, y0 + h * 0.72);
+    ctx.lineTo(x0 + w * 0.94, y0 + h);
+    ctx.lineTo(x0 + w * 0.06, y0 + h);
+    ctx.closePath();
+    ctx.stroke();
+    var ring;
+    for (ring = 1; ring <= 3; ring++) {
+      var inset = ring * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(x0 + w * (0.06 + inset), y0 + h * 0.7);
+      ctx.quadraticCurveTo(x0 + w * 0.5, y0 + h * (0.08 + ring * 0.1), x0 + w * (0.94 - inset), y0 + h * 0.7);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.75;
+    var rib;
+    for (rib = -4; rib <= 4; rib++) {
+      var rx = x0 + w * (0.5 + rib * 0.09);
+      ctx.beginPath();
+      ctx.moveTo(rx, y0 + h * 0.78);
+      ctx.lineTo(rx, y0 + h * 0.98);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#c6a15a";
+    ctx.beginPath();
+    ctx.moveTo(x0 + w * 0.08, y0 + h * 0.78);
+    ctx.lineTo(x0 + w * 0.92, y0 + h * 0.78);
+    ctx.moveTo(x0 + w * 0.08, y0 + h * 0.9);
+    ctx.lineTo(x0 + w * 0.92, y0 + h * 0.9);
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.restore();
+    return;
     var w = 58 * s;
     var rise = 11 * s;
     ctx.save();
@@ -1827,7 +2153,71 @@
   }
 
   function drawStreetcar(ctx, x, y, s) {
-    if (drawTraced(ctx, "streetcar", x - 46 * s, y - 24 * s, 92 * s, 24 * s)) return;
+    var x0 = x - 48 * s;
+    var y0 = y - 28 * s;
+    var w = 96 * s;
+    var h = 28 * s;
+    function X(u) { return x0 + u * w; }
+    function Y(v) { return y0 + v * h; }
+    ctx.save();
+    ctx.lineWidth = 1.15;
+    ctx.strokeStyle = "#8a3030";
+    ctx.beginPath();
+    ctx.moveTo(X(0.04), Y(0.78));
+    ctx.lineTo(X(0.96), Y(0.78));
+    ctx.moveTo(X(0.04), Y(0.86));
+    ctx.lineTo(X(0.96), Y(0.86));
+    ctx.stroke();
+    ctx.strokeStyle = "#1f6b44";
+    ctx.beginPath();
+    ctx.moveTo(X(0.04), Y(0.74));
+    ctx.lineTo(X(0.04), Y(0.28));
+    ctx.quadraticCurveTo(X(0.04), Y(0.16), X(0.1), Y(0.16));
+    ctx.lineTo(X(0.78), Y(0.16));
+    ctx.quadraticCurveTo(X(0.96), Y(0.16), X(0.96), Y(0.32));
+    ctx.lineTo(X(0.96), Y(0.74));
+    ctx.closePath();
+    ctx.moveTo(X(0.1), Y(0.16));
+    ctx.lineTo(X(0.1), Y(0.06));
+    ctx.lineTo(X(0.72), Y(0.06));
+    ctx.lineTo(X(0.72), Y(0.16));
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    var bay;
+    for (bay = 0; bay < 8; bay++) {
+      var bx = X(0.12 + bay * 0.075);
+      ctx.beginPath();
+      ctx.moveTo(bx, Y(0.46));
+      ctx.lineTo(bx, Y(0.28));
+      ctx.quadraticCurveTo(bx + w * 0.03, Y(0.2), bx + w * 0.06, Y(0.28));
+      ctx.lineTo(bx + w * 0.06, Y(0.46));
+      ctx.stroke();
+    }
+    ctx.strokeRect(X(0.78), Y(0.22), w * 0.07, h * 0.5);
+    ctx.strokeRect(X(0.86), Y(0.22), w * 0.07, h * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(X(0.42), Y(0.06));
+    ctx.lineTo(X(0.55), Y(-0.08));
+    ctx.moveTo(X(0.02), Y(-0.08));
+    ctx.lineTo(X(0.98), Y(-0.08));
+    ctx.stroke();
+    function truck(tx) {
+      ctx.beginPath();
+      ctx.moveTo(tx - w * 0.06, Y(0.74));
+      ctx.lineTo(tx + w * 0.06, Y(0.74));
+      ctx.lineTo(tx + w * 0.04, Y(0.86));
+      ctx.lineTo(tx - w * 0.04, Y(0.86));
+      ctx.closePath();
+      ctx.moveTo(tx - w * 0.05, Y(0.96));
+      ctx.arc(tx - w * 0.05, Y(0.96), Math.max(1.2, s * 1.3), 0, Math.PI * 2);
+      ctx.moveTo(tx + w * 0.05, Y(0.96));
+      ctx.arc(tx + w * 0.05, Y(0.96), Math.max(1.2, s * 1.3), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    truck(X(0.28));
+    truck(X(0.72));
+    ctx.restore();
+    return;
     ctx.save();
     ctx.lineWidth = 1.15;
     ctx.lineJoin = "round";
@@ -2021,10 +2411,10 @@
     drawHorizon(ctx, cam, model);
     if ((ship.plasma || 0) > 0.08) {
       ctx.save();
-      ctx.strokeStyle = "rgba(255, 176, 96, 0.95)";
+      ctx.strokeStyle = "rgba(255, 176, 96, 0.7)";
       var limbY = model.h * 0.72;
-      ctx.lineWidth = 2.5;
-      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 1.6;
+      ctx.globalAlpha = 0.28;
       ctx.beginPath();
       ctx.arc(model.w * 0.5, limbY + model.h * 0.9, model.h * 0.9, Math.PI * 1.2, Math.PI * 1.8);
       ctx.stroke();
@@ -2241,6 +2631,10 @@
     var lod = lodOf(pose, cam, body.length);
     var flaps = body.flaps || [];
     var i;
+    var tailP = project(xform({ x: 0, y: 0, z: 0 }, pose), cam);
+    var noseP = project(xform({ x: 0, y: body.length || SHIP, z: 0 }, pose), cam);
+    var pix = Math.hypot(noseP.x - tailP.x, noseP.y - tailP.y);
+    var small = pix < 170;
     for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
     fillSilhouette(ctx, body, pose, cam, alpha, lod < 2);
     {
@@ -2256,14 +2650,20 @@
         var p = project(xform(d, pose), cam);
         var lit = shade(n, d.y);
         if (d.tile) lit *= 0.42;
-        ctx.globalAlpha = alpha * (0.25 + lit * 0.75);
-        ctx.fillRect(p.x, p.y, lit > 0.75 ? 1.4 : 1, lit > 0.75 ? 1.4 : 1);
+        if (small && (i % 5) !== 0) continue;
+        ctx.globalAlpha = alpha * (small ? 0.35 : 1) * (0.25 + lit * 0.75);
+        ctx.fillRect(p.x, p.y, small ? 1 : (lit > 0.75 ? 1.4 : 1), small ? 1 : (lit > 0.75 ? 1.4 : 1));
       }
     }
     if (lod > 0) {
       var kept = [];
-      for (i = 0; i < body.lines.length; i++) if (keepLine(body.lines[i], lod)) kept.push(body.lines[i]);
-      strokeAll(ctx, kept, pose, cam, alpha);
+      for (i = 0; i < body.lines.length; i++) {
+        var ln = body.lines[i];
+        if (!keepLine(ln, lod)) continue;
+        if (small && ln.kind !== "edge" && ln.kind !== "fin") continue;
+        kept.push(ln);
+      }
+      strokeAll(ctx, kept, pose, cam, alpha * (small ? 0.5 : 1));
     } else {
       var fins = [];
       for (i = 0; i < body.lines.length; i++) if (body.lines[i].kind === "fin") fins.push(body.lines[i]);
@@ -2723,19 +3123,27 @@
       belly.push(low);
     }
     ctx.save();
-    ctx.strokeStyle = "rgba(255, 168, 72, 0.9)";
-    ctx.lineWidth = 3.5;
-    ctx.globalAlpha = 0.55 * amount;
     ctx.beginPath();
-    ctx.moveTo(belly[0].x, belly[0].y + 2);
-    for (i = 1; i < belly.length; i++) ctx.lineTo(belly[i].x, belly[i].y + 2);
+    ctx.moveTo(belly[0].x, belly[0].y + 3);
+    for (i = 1; i < belly.length; i++) ctx.lineTo(belly[i].x, belly[i].y + 3);
+    ctx.strokeStyle = "rgba(255, 140, 48, 0.95)";
+    ctx.lineWidth = 8;
+    ctx.globalAlpha = 0.55 * amount;
     ctx.stroke();
-    ctx.strokeStyle = "rgba(255, 244, 230, 0.95)";
-    ctx.lineWidth = 1.2;
-    ctx.globalAlpha = 0.8 * amount;
+    ctx.strokeStyle = "rgba(255, 244, 230, 0.98)";
+    ctx.lineWidth = 2.2;
+    ctx.globalAlpha = 0.9 * amount;
     ctx.stroke();
     ctx.restore();
-    for (i = 0; i < 120; i++) {
+    var wake = belly[0];
+    for (i = 0; i < 28; i++) {
+      var fade = 1 - i / 28;
+      var back = 6 + i * (2.2 + amount * 3);
+      ctx.fillStyle = i % 3 === 0 ? "#fff6ec" : "#ffb15a";
+      ctx.globalAlpha = 0.28 * fade * amount;
+      stippleDot(ctx, wake.x - ax * back, wake.y - ay * back * 0.35 + 2, fade > 0.5 ? 1.4 : 0.8);
+    }
+    for (i = 0; i < 90; i++) {
       var y = 2 + hash(i + 23) * (SHIP - 6);
       y = clamp(y, 0.6, SHIP - 0.6);
       var rad = shipRadius(y);
@@ -3010,10 +3418,11 @@
     var orbit = radius + alt;
     var k;
     ctx.lineWidth = 1;
+    var trailFade = 1 - ramp(pose.t || 0, 116, 124);
     for (k = 18; k >= 1; k--) {
       var a0 = a - k * 0.05;
       var a1 = a - (k - 1) * 0.05;
-      ctx.globalAlpha = 0.05 + (1 - k / 18) * 0.5;
+      ctx.globalAlpha = (0.05 + (1 - k / 18) * 0.5) * trailFade;
       ctx.beginPath();
       ctx.moveTo(cx + Math.cos(a0) * orbit, cy + Math.sin(a0) * orbit);
       ctx.lineTo(cx + Math.cos(a1) * orbit, cy + Math.sin(a1) * orbit);
@@ -3075,7 +3484,7 @@
       cx: sx, cy: sy, orbit: 92, ang: 1.1, radius: 24
     });
     drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
-    drawSats(ctx, model._cards, pose);
+    if ((pose.t || 0) < 122) drawSats(ctx, model._cards, pose);
     drawAirliner(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     drawHomeLink(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     if ((pose.t || 0) > 64 && (pose.t || 0) < 118 && (pose.earthAlpha || 0) > 0.35) {
@@ -3170,7 +3579,7 @@
       var linesN = Math.max(1, Math.ceil(c.text.length / cols));
       var h = 20 + linesN * 17;
       var x = model.cramped ? 12 : 16;
-      var foot = model.cramped ? 140 : 86;
+      var foot = model.cramped ? 36 : 86;
       var y = model.cramped
         ? Math.max(globeBottom + 18, model.h - h - foot)
         : Math.max(72, model.h - h - foot);
@@ -3374,7 +3783,7 @@
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
       ctx.globalAlpha = fade;
-      drawTraced(ctx, "jet", jx, jy, jw, jh, true);
+      drawJet(ctx, jx, jy, jw, jh);
       ctx.restore();
       dome = { x: jx + jw * 0.78, y: jy + jh * 0.2 };
     }
