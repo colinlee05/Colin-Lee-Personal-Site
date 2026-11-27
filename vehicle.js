@@ -1020,16 +1020,17 @@
     pose.t = realT;
     pose.done = realT >= 180;
     pose.beat = beatFor(realT);
-    if (realT >= 64 && realT < 146) {
-      pose.worldAlpha = 0;
-      pose.padFade = 0;
+    if (realT >= 50 && realT < 146) {
+      var intoEarth = ramp(realT, 58, 70);
+      pose.worldAlpha = 1 - intoEarth;
+      pose.padFade = 1 - intoEarth;
+      pose.depart = 1 - intoEarth;
       pose.landShow = 0;
       pose.heroIn = 0;
       pose.useHero = false;
-      pose.earthAlpha = 1;
-      pose.earthIn = 1;
-      pose.scene = "earth";
-      pose.depart = 0;
+      pose.earthAlpha = intoEarth;
+      pose.earthIn = intoEarth;
+      pose.scene = intoEarth > 0.55 ? "earth" : "pad";
       pose.deorbit = 0;
       pose.entry = 0;
       pose.retro = 0;
@@ -1055,38 +1056,41 @@
       pose.booster = stacked.booster;
     } else {
       var dist = lin([
-        { t: T_SPLIT, v: 0 }, { t: 13.2, v: 14 }, { t: 15.4, v: 48 },
-        { t: 18.5, v: 130 }, { t: 26, v: 280 }, { t: 34, v: 420 }
+        { t: T_SPLIT, v: 0 }, { t: 13.5, v: 1.6 }, { t: 15.4, v: 16 },
+        { t: 18.5, v: 64 }, { t: 26, v: 210 }, { t: 34, v: 420 }
       ], t);
-      pose.ship = slide(split.ship, dist, mix(0, -6, ramp(t, 14, 20)));
+      pose.ship = slide(split.ship, dist, mix(0, -4, ramp(t, 16, 22)));
       var b0 = split.booster;
-      var flipBack = smooth(span(t, 12.3, 14.7));
-      var toEntry = smooth(span(t, 18.6, 21.8));
-      var br = mix(mix(b0.rot, 90, flipBack), 0, toEntry);
       var bx = lin([
         { t: 12.2, v: b0.x },
-        { t: 14.7, v: b0.x + 22 },
-        { t: 17.0, v: 38 },
-        { t: 19.4, v: 24 },
-        { t: 21.4, v: 16 },
-        { t: 23.0, v: 7.5 },
-        { t: 24.5, v: CATCH_X + 1.3 },
-        { t: 25.4, v: CATCH_X },
+        { t: 14.6, v: b0.x + 8 },
+        { t: 17.4, v: b0.x - 2 },
+        { t: 20.2, v: 26 },
+        { t: 22.6, v: 8 },
+        { t: 24.2, v: CATCH_X + 8 },
+        { t: 25.4, v: CATCH_X + 1.6 },
+        { t: 26.4, v: CATCH_X },
         { t: 27.6, v: CATCH_X }
       ], t);
       var by = lin([
         { t: 12.2, v: b0.y },
-        { t: 14.6, v: b0.y - 4 },
-        { t: 16.8, v: 250 },
-        { t: 19.0, v: 168 },
-        { t: 21.2, v: 124 },
-        { t: 22.8, v: CATCH_Y + 20 },
-        { t: 23.9, v: CATCH_Y + 6.5 },
-        { t: 24.9, v: CATCH_Y + 1.7 },
-        { t: 25.7, v: CATCH_Y + 0.35 },
-        { t: 26.35, v: CATCH_Y - 0.5 },
-        { t: 26.9, v: CATCH_Y + 0.16 },
-        { t: 27.5, v: CATCH_Y }
+        { t: 15.0, v: b0.y + 28 },
+        { t: 18.0, v: b0.y + 6 },
+        { t: 20.8, v: CATCH_Y + 120 },
+        { t: 23.0, v: CATCH_Y + 32 },
+        { t: 24.4, v: CATCH_Y + 7 },
+        { t: 25.3, v: CATCH_Y + 1.2 },
+        { t: 26.1, v: CATCH_Y - 0.22 },
+        { t: 26.9, v: CATCH_Y + 0.06 },
+        { t: 27.6, v: CATCH_Y }
+      ], t);
+      var br = lin([
+        { t: 12.2, v: b0.rot },
+        { t: 13.6, v: b0.rot },
+        { t: 17.0, v: 155 },
+        { t: 20.4, v: 16 },
+        { t: 22.8, v: 0 },
+        { t: 27.6, v: 0 }
       ], t);
       pose.booster = bodyPose(bx, by, br, BOOST / 2);
     }
@@ -1098,14 +1102,12 @@
     bTh = bTh * (1 - meco) + 0.1 * meco;
     pose.booster.bells = 3;
     if (t >= T_SPLIT) {
-      var residual = 0.1 * (1 - ramp(t, T_SPLIT, T_SPLIT + 0.4));
-      var flipOn = ramp(t, 12.22, 12.4);
-      var bb = ramp(t, 14.45, 14.9) * (1 - ramp(t, 16.85, 17.25));
-      var land13 = ramp(t, 20.55, 21.0) * (1 - ramp(t, 23.2, 23.6));
-      var land3 = ramp(t, 23.1, 23.5) * (1 - ramp(t, 26.15, 26.7));
-      var flipTh = flipOn * (1 - ramp(t, 16.9, 17.45)) * 0.82;
-      bTh = Math.min(1, residual * (1 - flipOn) + flipTh * (1 - bb) + bb * 0.95 + land13 + land3 * 0.62);
-      pose.booster.bells = land13 > 0.2 && land13 >= land3 ? 13 : 3;
+      var residual = 0.18 * (1 - ramp(t, 12.2, 13.5));
+      var flipOn = ramp(t, 13.5, 14.6);
+      var bb = ramp(t, 14.8, 15.6) * (1 - ramp(t, 17.6, 18.4));
+      var land3 = ramp(t, 22.8, 23.5) * (1 - ramp(t, 25.6, 26.3));
+      bTh = Math.min(1, residual * (1 - flipOn) + flipOn * (1 - bb) * 0.45 + bb * 0.9 + land3 * 0.72);
+      pose.booster.bells = 3;
     }
     pose.booster.thrust = bTh;
     pose.booster.plume = bTh > 0.04 ? bTh : (t > 26.05 && t < 26.85 ? (1 - ramp(t, 26.1, 26.8)) * 0.35 : 0);
@@ -1118,8 +1120,8 @@
     var pin0 = BELL + BOOST - 6.4;
     var pinCatch = CATCH_Y + (BOOST / 2 - 6.4);
     var trackY = clamp(pose.booster.y + (BOOST / 2 - 6.4), pin0, pinCatch + 4);
-    pose.sticksY = t < 16.2 ? pin0 : mix(pin0, trackY, smooth(span(t, 16.2, 18.4)));
-    pose.sticksOpen = mix(0.78 + 0.18 * ramp(t, 0.2, 1.75), 0.06, smooth(span(t, 25.6, 26.55)));
+    pose.sticksY = t < 20 ? pin0 : mix(pin0, trackY, smooth(span(t, 20, 23.2)));
+    pose.sticksOpen = mix(0.92, 0.05, smooth(span(t, 25.1, 26.4)));
 
     var follow = ramp(t, 2.65, 6.1);
     var scaleMul = 1 - 0.42 * ramp(t, 2.85, 7.4);
@@ -1147,55 +1149,56 @@
     var sep = Math.abs(pose.ship.y - pose.booster.y) + Math.abs(pose.ship.x - pose.booster.x) + 70;
     var fit = Math.min(model.cam0.scale * 0.46, (model.h * 0.52) / sep);
     pose.cam = blendCam(pose.cam, {
-      scale: fit,
-      ox: model.w * 0.5,
-      oy: model.h * 0.5,
-      lookX: (pose.booster.x + pose.ship.x) * 0.5,
-      lookY: (pose.booster.y + pose.ship.y) * 0.5
+      scale: Math.max(model.cam0.scale * 0.62, fit),
+      ox: model.w * 0.48,
+      oy: model.h * 0.4,
+      lookX: pose.ship.x,
+      lookY: pose.ship.y
     }, pull);
+    if (pose.cam.scale < model.cam0.scale * 0.58) pose.cam.scale = model.cam0.scale * 0.58;
 
     var lx = lin([
-      { t: 48.4, v: 72 },
-      { t: 51.2, v: 48 },
-      { t: 54.0, v: 28 },
-      { t: 56.2, v: 14 },
-      { t: 57.8, v: 5 },
-      { t: 59.0, v: CATCH2_X + 0.6 },
-      { t: 60.0, v: CATCH2_X },
+      { t: 48.4, v: 120 },
+      { t: 54.0, v: 62 },
+      { t: 57.6, v: 22 },
+      { t: 59.6, v: CATCH2_X + 6 },
+      { t: 61.0, v: CATCH2_X },
       { t: 64.0, v: CATCH2_X }
     ], t);
     var ly = lin([
-      { t: 48.4, v: 520 },
-      { t: 51.4, v: 380 },
-      { t: 54.0, v: 240 },
-      { t: 56.2, v: 150 },
-      { t: 57.6, v: CATCH2_Y + 26 },
-      { t: 58.8, v: CATCH2_Y + 7 },
-      { t: 59.8, v: CATCH2_Y + 1.4 },
-      { t: 60.6, v: CATCH2_Y + 0.25 },
-      { t: 61.3, v: CATCH2_Y - 0.45 },
-      { t: 61.9, v: CATCH2_Y + 0.14 },
-      { t: 62.7, v: CATCH2_Y },
+      { t: 48.4, v: 560 },
+      { t: 52.8, v: 360 },
+      { t: 55.6, v: 200 },
+      { t: 58.0, v: CATCH2_Y + 42 },
+      { t: 59.6, v: CATCH2_Y + 9 },
+      { t: 60.6, v: CATCH2_Y + 1.1 },
+      { t: 61.5, v: CATCH2_Y - 0.22 },
+      { t: 62.5, v: CATCH2_Y },
       { t: 64.0, v: CATCH2_Y }
     ], t);
-    var lrot = mix(86, 0, smooth(span(t, 54.8, 57.4)));
+    var lrot = lin([
+      { t: 48.4, v: 90 },
+      { t: 55.0, v: 86 },
+      { t: 59.2, v: 0 },
+      { t: 64.0, v: 0 }
+    ], t);
     pose.landShip = bodyPose(lx, ly, lrot, SHIP / 2);
-    pose.landShip.thrust = ramp(t, 56.6, 57.2) * (1 - ramp(t, 60.4, 60.9));
+    pose.landShip.thrust = ramp(t, 55.1, 56.0) * (1 - ramp(t, 61.0, 61.7));
     pose.landShip.plume = pose.landShip.thrust > 0.04
       ? pose.landShip.thrust
       : (t > 60.3 && t < 61.15 ? (1 - ramp(t, 60.4, 61.1)) * 0.3 : 0);
-    pose.landShip.plasma = ramp(t, 48.5, 49.2) * (1 - ramp(t, 54.6, 56.0));
+    pose.landShip.plasma = ramp(t, 48.6, 49.5) * (1 - ramp(t, 54.4, 55.4));
     var shipPin = clamp(ly + (SHIP / 2 - 8), 70, CATCH2_Y + SHIP / 2 - 6);
     pose.sticks2Y = shipPin;
-    pose.sticks2Open = mix(0.96, 0.05, smooth(span(t, 60.2, 61.15)));
+    pose.sticks2Open = mix(0.96, 0.05, smooth(span(t, 60.2, 61.8)));
     var unit = model.cam0.scale / 5.05;
     var tighten = smooth(span(t, 52.8, 58.6));
     pose.landCam = {
-      scale: mix(2.55, 4.05, tighten) * unit * (model.cramped ? 0.78 : 1),
-      ox: model.w * (model.cramped ? 0.55 : 0.56),
-      oy: model.h * 0.5,
-      lookX: mix(28, CATCH2_X, tighten),
-      lookY: mix(ly * 0.42 + 80, 86, tighten)
+      scale: mix(4.8, 5.3, tighten) * unit * (model.cramped ? 0.9 : 1),
+      ox: model.w * 0.5,
+      oy: model.h * (model.cramped ? 0.42 : 0.46),
+      lookX: lx,
+      lookY: ly
     };
     var groundScreen = pose.landCam.oy + pose.landCam.lookY * pose.landCam.scale;
     var navClear = model.h - 156;
@@ -1265,6 +1268,7 @@
         pose.landCam.oy = Math.min(navClear, gNow + roomDown) - pose.landCam.lookY * pose.landCam.scale;
       }
     }
+    if (pose.landCam.scale < model.cam0.scale * 0.82) pose.landCam.scale = model.cam0.scale * 0.82;
     pose.shipIn = 1;
     pose.depart = 1 - ramp(t, 29.2, 29.9);
     pose.padFade = 1 - ramp(t, 29.5, 30.2);
@@ -1673,11 +1677,11 @@
     ctx.moveTo(x - w * 0.4, y - story);
     ctx.lineTo(x + w * 0.4, y - story);
     var row;
-    for (row = 1; row <= 5; row++) {
-      ctx.moveTo(x - w * 0.4, y - row * (story / 3.1));
-      ctx.lineTo(x + w * 0.4, y - row * (story / 3.1));
-      ctx.moveTo(x - w * 0.4, y - story - row * (story / 3.1));
-      ctx.lineTo(x + w * 0.4, y - story - row * (story / 3.1));
+    for (row = 1; row <= 3; row++) {
+      ctx.moveTo(x - w * 0.4, y - row * (story * 0.26));
+      ctx.lineTo(x + w * 0.4, y - row * (story * 0.26));
+      ctx.moveTo(x - w * 0.4, y - story - row * (story * 0.22));
+      ctx.lineTo(x + w * 0.4, y - story - row * (story * 0.22));
     }
     var sh;
     for (sh = 0; sh < 5; sh++) {
@@ -1750,42 +1754,47 @@
   }
 
   function drawSuperdome(ctx, x, y, s) {
-    var w = 46 * s;
-    var h = 22 * s;
+    var w = 58 * s;
+    var rise = 11 * s;
     ctx.save();
     ctx.lineWidth = 1.15;
     ctx.strokeStyle = INK;
     ctx.beginPath();
-    ctx.moveTo(x - w, y - h * 0.22);
-    ctx.quadraticCurveTo(x, y - h * 1.7, x + w, y - h * 0.22);
+    ctx.moveTo(x - w, y - 4 * s);
+    ctx.quadraticCurveTo(x, y - rise * 2.1, x + w, y - 4 * s);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.2, w * 1.05, h * 0.22, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    var rib;
-    for (rib = -3; rib <= 3; rib++) {
+    var ring;
+    for (ring = 1; ring <= 4; ring++) {
+      var rw = w * (1 - ring * 0.16);
+      var ry = rise * (1.7 - ring * 0.28);
       ctx.beginPath();
-      ctx.moveTo(x + rib * w * 0.18, y - h * 0.2);
-      ctx.quadraticCurveTo(x + rib * w * 0.08, y - h * (1.15 - Math.abs(rib) * 0.08), x + rib * w * 0.04, y - h * 1.35);
+      ctx.moveTo(x - rw, y - 4 * s);
+      ctx.quadraticCurveTo(x, y - ry, x + rw, y - 4 * s);
       ctx.stroke();
     }
+    var col;
+    ctx.globalAlpha = 0.7;
+    for (col = -5; col <= 5; col++) {
+      var cx = x + col * w * 0.16;
+      ctx.beginPath();
+      ctx.moveTo(cx, y);
+      ctx.lineTo(cx, y - 7 * s);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = "#c6a15a";
     ctx.beginPath();
-    ctx.moveTo(x - w * 1.02, y - h * 0.08);
-    ctx.lineTo(x + w * 1.02, y - h * 0.08);
-    ctx.moveTo(x - w * 1.02, y + h * 0.02);
-    ctx.lineTo(x + w * 1.02, y + h * 0.02);
+    ctx.moveTo(x - w, y - 3 * s);
+    ctx.lineTo(x + w, y - 3 * s);
+    ctx.moveTo(x - w, y - 1.2 * s);
+    ctx.lineTo(x + w, y - 1.2 * s);
     ctx.stroke();
     ctx.strokeStyle = INK;
     ctx.beginPath();
-    ctx.moveTo(x - w * 1.08, y);
-    ctx.lineTo(x - w * 0.72, y - h * 0.28);
-    ctx.moveTo(x + w * 1.08, y);
-    ctx.lineTo(x + w * 0.72, y - h * 0.28);
-    ctx.moveTo(x - w * 0.2, y);
-    ctx.lineTo(x - w * 0.05, y - h * 0.16);
-    ctx.moveTo(x + w * 0.2, y);
-    ctx.lineTo(x + w * 0.05, y - h * 0.16);
+    ctx.moveTo(x - w * 1.12, y);
+    ctx.quadraticCurveTo(x - w * 0.92, y - 8 * s, x - w * 0.72, y - 3 * s);
+    ctx.moveTo(x + w * 1.12, y);
+    ctx.quadraticCurveTo(x + w * 0.92, y - 8 * s, x + w * 0.72, y - 3 * s);
     ctx.stroke();
     ctx.restore();
   }
@@ -1885,23 +1894,16 @@
     ctx.lineTo(x + 2.2 * s, y - 1.5 * s);
     ctx.stroke();
     ctx.save();
-    ctx.translate(x, y - 10 * s);
-    ctx.rotate(-0.55);
-    ctx.strokeRect(-9 * s, -5 * s, 18 * s, 10 * s);
-    var g;
-    for (g = 1; g <= 3; g++) {
-      ctx.beginPath();
-      ctx.moveTo(-9 * s + g * 4.2 * s, -5 * s);
-      ctx.lineTo(-9 * s + g * 4.2 * s, 5 * s);
-      ctx.moveTo(-9 * s, -5 * s + g * 2.4 * s);
-      ctx.lineTo(9 * s, -5 * s + g * 2.4 * s);
-      ctx.stroke();
-    }
+    ctx.translate(x, y - 14 * s);
+    ctx.rotate(-0.45);
+    ctx.strokeRect(-11 * s, -6.5 * s, 22 * s, 13 * s);
     ctx.beginPath();
-    ctx.moveTo(0, 5 * s);
-    ctx.lineTo(0, 8 * s);
-    ctx.moveTo(-3 * s, 8 * s);
-    ctx.lineTo(3 * s, 8 * s);
+    ctx.moveTo(-11 * s, -5.2 * s);
+    ctx.lineTo(11 * s, -5.2 * s);
+    ctx.moveTo(0, 6.5 * s);
+    ctx.lineTo(0, 11 * s);
+    ctx.moveTo(-3.5 * s, 11 * s);
+    ctx.lineTo(4 * s, 11 * s);
     ctx.stroke();
     ctx.restore();
     ctx.restore();
@@ -2007,8 +2009,8 @@
       drawPlume(ctx, cam, ship, -0.25, sPow, t, 90);
       drawCore(ctx, cam, ship, -0.15, 2.05, sPow, 3);
     }
-    if (ship.plasma > 0.04 && shipA > 0.05) drawPlasma(ctx, ship, cam, ship.plasma * shipA, t);
     drawBody(ctx, model.ship, ship, cam, shipA);
+    if (ship.plasma > 0.04 && shipA > 0.05) drawPlasma(ctx, ship, cam, ship.plasma * shipA * 0.55, t);
     drawChopsticks(ctx, cam, -16, pose.sticks2Y, pose.sticks2Open, 1);
     ctx.restore();
   }
@@ -2559,7 +2561,8 @@
       var dx = tip.x - origin.x;
       var dy = tip.y - origin.y;
       var dz = (tip.z || 0) - (origin.z || 0);
-      var len = (8 + power * 22) * (cam.scale < 1.8 ? 2.4 : 1);
+      var climb = 1 + Math.min(1.8, Math.max(0, origin.y) / 220);
+      var len = (8 + power * 26) * climb;
       var sideX = -dy;
       var sideY = dx;
       var sideL = Math.hypot(sideX, sideY) || 1;
@@ -2579,10 +2582,10 @@
           y: origin.y + dy * len * u - sideY * fan,
           z: (origin.z || 0) + dz * len * u
         }, cam);
-        var s = (4 + (1 - u) * 7) * (0.45 + power * 0.7);
-        ctx.globalAlpha = Math.pow(1 - u, 0.45) * (0.35 + 0.4 * power);
-        ctx.fillRect(p.x - s * 0.5, p.y - s * 0.4, s, s * 0.8);
-        ctx.fillRect(q.x - s * 0.5, q.y - s * 0.4, s, s * 0.8);
+        var flick = 0.65 + 0.35 * fract(hash(b * 19 + i) + Date.now() / 280);
+        ctx.globalAlpha = Math.pow(1 - u, 0.7) * (0.18 + 0.35 * power) * flick;
+        stippleDot(ctx, p.x, p.y, 0.7 + (1 - u) * 1.1);
+        stippleDot(ctx, q.x, q.y, 0.7 + (1 - u) * 1.1);
       }
     }
   }
@@ -2604,7 +2607,8 @@
     ctx.fillStyle = INK;
     for (i = 0; i < n; i++) {
       var phase = fract(hash(seed + i * 3) + t * (0.65 + hash(seed + i) * 0.85));
-      var len = phase * (7 + power * 18);
+      var climb = 1 + Math.min(2.1, Math.max(0, origin.y) / 200);
+      var len = phase * (8 + power * 24) * climb;
       var wob = (hash(seed + i + 11) - 0.5) * 2 * (0.6 + phase * phase * 7.5) * (0.45 + power);
       var wob2 = (hash(seed + i + 29) - 0.5) * 2 * (0.6 + phase * phase * 7.5) * (0.45 + power);
       var p = project({
@@ -2661,29 +2665,28 @@
     var al = Math.hypot(ax, ay) || 1;
     ax /= al;
     ay /= al;
-    var far = cam.scale < 2.2 ? 2.6 : 1;
     var i;
     ctx.fillStyle = INK;
-    for (i = 0; i < 140; i++) {
+    for (i = 0; i < 90; i++) {
       var phase = fract(hash(i + 21) + t * (0.85 + hash(i + 22) * 0.3));
       var y = 3 + hash(i + 23) * (SHIP - 8);
       y = clamp(y, 0.4, SHIP - 0.4);
       var th = Math.PI + (hash(i + 24) - 0.5) * 1.35;
-      var rad = shipRadius(y) + 0.35 + phase * 1.4;
+      var rad = shipRadius(y) + 0.2 + phase * 0.7;
       var body = xform({
         x: rad * Math.cos(th),
         y: y,
         z: rad * Math.sin(th)
       }, pose);
-      var trail = (6 + phase * (14 + amount * 22)) * far;
+      var trail = 3 + phase * (8 + amount * 10);
       var p = project({
         x: body.x + ax * trail,
         y: body.y + ay * trail,
         z: body.z
       }, cam);
       var hot = 1 - phase;
-      ctx.globalAlpha = (0.28 + 0.7 * hot) * amount;
-      stippleDot(ctx, p.x, p.y, hot > 0.55 ? 1.35 : 0.8);
+      ctx.globalAlpha = (0.1 + 0.22 * hot) * amount;
+      stippleDot(ctx, p.x, p.y, hot > 0.55 ? 1.05 : 0.65);
     }
   }
 
@@ -2950,7 +2953,9 @@
     var svy = Math.cos(a);
     var retroRot = Math.atan2(svx, svy) * 180 / Math.PI;
     var rot = retroRot + 180 + 180 * (pose.retro || 0);
-    var ppm = (model.cramped ? 0.62 : 0.72) * Math.max(grow, 0.7);
+    var ppm = Math.max(4.4, (model.cam0.scale || 5) * 0.8);
+    sx = model.w * (model.cramped ? 0.52 : 0.66);
+    sy = model.h * (model.cramped ? 0.2 : 0.28);
     var shipCam = {
       scale: ppm,
       ox: sx,
@@ -2968,9 +2973,9 @@
         drawPlume(ctx, shipCam, shipPose, -0.35, pose.deorbit, pose.t || 0, 120);
         drawCore(ctx, shipCam, shipPose, -0.2, 1.7, pose.deorbit, 3);
       }
-      if (shipPose.plasma > 0.04) drawPlasma(ctx, shipPose, shipCam, shipPose.plasma, pose.t || 0);
       drawBody(ctx, model.ship, shipPose, shipCam, 1);
       drawPayloadDoor(ctx, shipCam, shipPose, pose.door || 0);
+      if (shipPose.plasma > 0.04) drawPlasma(ctx, shipPose, shipCam, shipPose.plasma * 0.45, pose.t || 0);
     }
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
@@ -2993,7 +2998,7 @@
     var doorP = project(xform({ x: R + 0.45, y: 33.6, z: 0 }, shipPose), shipCam);
     model._shipScreen = { x: sx, y: sy };
     model._cards = cardsFor(pose, model, {
-      cx: cx, cy: cy, orbit: orbit, ang: a, radius: radius
+      cx: sx, cy: sy, orbit: model.cramped ? 54 : 92, ang: 1.1, radius: 24
     });
     drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
     drawSats(ctx, model._cards, pose);
@@ -3091,9 +3096,10 @@
       var linesN = Math.max(1, Math.ceil(c.text.length / cols));
       var h = 20 + linesN * 17;
       var x = 16;
-      var y = Math.max(globeBottom + 18, model.h - h - 84);
+      var foot = model.cramped ? 168 : 86;
+      var y = Math.max(72, model.h - h - foot);
       x = clamp(x, 10, model.w - w - 10);
-      y = clamp(y, 72, model.h - h - 86);
+      y = clamp(y, 64, model.h - h - foot);
       c.x = x;
       c.y = y;
       c.w = w;
@@ -3238,10 +3244,10 @@
     var t = pose.t || 0;
     if (!geo || t < 120 || t > 132.6 || (pose.earthAlpha || 0) < 0.08) return;
     var fade = ramp(t, 120, 121.3) * (1 - ramp(t, 131.3, 132.6)) * pose.earthAlpha;
-    var panelW = Math.min(model.w - 72, 1000);
-    var panelH = Math.min(model.h - 150, 560);
-    var panelX = (model.w - panelW) / 2;
-    var panelY = Math.max(64, (model.h - panelH) / 2 - 8);
+    var panelW = model.cramped ? model.w - 16 : Math.min(model.w - 72, 1000);
+    var panelH = model.cramped ? Math.min(340, model.h * 0.46) : Math.min(model.h - 150, 560);
+    var panelX = model.cramped ? 8 : (model.w - panelW) / 2;
+    var panelY = model.cramped ? 86 : Math.max(64, (model.h - panelH) / 2 - 8);
     ctx.save();
     ctx.globalAlpha = 0.96 * fade;
     ctx.fillStyle = "#12161e";
@@ -3339,6 +3345,11 @@
       [L * 0.46, 0.18 * r]
     ]);
     ctx.beginPath();
+    ctx.moveTo(L * 0.32, -r);
+    ctx.quadraticCurveTo(L * 0.44, -r * 0.95, L * 0.505, 0);
+    ctx.quadraticCurveTo(L * 0.44, r * 0.85, L * 0.32, r);
+    ctx.stroke();
+    ctx.beginPath();
     ctx.moveTo(-L * 0.40, -0.32 * r);
     ctx.lineTo(-L * 0.53, -0.62 * r);
     ctx.lineTo(-L * 0.505, -0.98 * r);
@@ -3416,10 +3427,10 @@
     var t = pose.t || 0;
     if (!geo || t < 133.2 || t > 145.6 || (pose.earthAlpha || 0) < 0.15) return;
     var fade = ramp(t, 133.2, 134.5) * (1 - ramp(t, 144.3, 145.6)) * pose.earthAlpha;
-    var panelW = Math.min(model.w - 72, 1000);
-    var panelH = Math.min(model.h - 150, 540);
-    var panelX = (model.w - panelW) / 2;
-    var panelY = Math.max(64, (model.h - panelH) / 2 - 8);
+    var panelW = model.cramped ? model.w - 16 : Math.min(model.w - 72, 1000);
+    var panelH = model.cramped ? Math.min(420, model.h * 0.55) : Math.min(model.h - 150, 540);
+    var panelX = model.cramped ? 8 : (model.w - panelW) / 2;
+    var panelY = model.cramped ? 86 : Math.max(64, (model.h - panelH) / 2 - 8);
     var s = Math.min(2.35, Math.max(1.2, panelW / 430));
     var groundY = panelY + panelH - 28;
     var houseX = panelX + panelW * 0.42;
@@ -3447,7 +3458,7 @@
     ctx.globalAlpha = 0.95 * fade;
     drawHome(ctx, houseX, groundY, s * 0.92);
     drawDish(ctx, houseX + 78 * s, groundY, s * 1.15);
-    drawStreetcar(ctx, panelX + panelW * 0.16, groundY, Math.min(1.55, s * 0.62));
+    drawStreetcar(ctx, panelX + panelW * 0.18, groundY, Math.min(2.05, s * 0.95));
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;

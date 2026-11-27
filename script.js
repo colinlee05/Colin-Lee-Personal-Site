@@ -684,30 +684,47 @@
         ? model.mission.elapsed
         : (performance.now() - model.mission.t0) / 1000;
     }
-    var margin = 14;
-    var availW = Math.max(320, window.innerWidth - margin * 2);
-    var availH = Math.max(320, window.innerHeight - margin * 2);
-    var fit = Math.min(availW / 1440, availH / 900);
-    stage.style.width = "1440px";
-    stage.style.height = "900px";
-    stage.style.position = "fixed";
-    stage.style.inset = "auto";
-    stage.style.left = ((window.innerWidth - 1440 * fit) / 2) + "px";
-    stage.style.top = ((window.innerHeight - 900 * fit) / 2) + "px";
-    stage.style.transformOrigin = "0 0";
-    stage.style.transform = "scale(" + fit + ")";
-    view.w = 1440;
-    view.h = 900;
-    view.scale = fit;
+    var portrait = window.innerHeight > window.innerWidth * 1.05;
+    html.classList.toggle("cramped", portrait);
+    html.classList.toggle("portrait", portrait);
     var px = Math.min(window.devicePixelRatio || 1, 3);
-    canvas.width = Math.max(2, Math.round(1440 * fit * px));
-    canvas.height = Math.max(2, Math.round(900 * fit * px));
-    view.dpr = canvas.width / 1440;
+    if (!portrait) {
+      var margin = 14;
+      var availW = Math.max(320, window.innerWidth - margin * 2);
+      var availH = Math.max(320, window.innerHeight - margin * 2);
+      var fit = Math.min(availW / 1440, availH / 900);
+      stage.style.width = "1440px";
+      stage.style.height = "900px";
+      stage.style.position = "fixed";
+      stage.style.inset = "auto";
+      stage.style.left = ((window.innerWidth - 1440 * fit) / 2) + "px";
+      stage.style.top = ((window.innerHeight - 900 * fit) / 2) + "px";
+      stage.style.transformOrigin = "0 0";
+      stage.style.transform = "scale(" + fit + ")";
+      view.w = 1440;
+      view.h = 900;
+      view.scale = fit;
+      canvas.width = Math.max(2, Math.round(1440 * fit * px));
+      canvas.height = Math.max(2, Math.round(900 * fit * px));
+      view.dpr = canvas.width / 1440;
+    } else {
+      stage.style.transform = "none";
+      stage.style.position = "fixed";
+      stage.style.inset = "0";
+      stage.style.left = "0";
+      stage.style.top = "0";
+      stage.style.width = "100%";
+      stage.style.height = "100%";
+      view.w = Math.max(1, window.innerWidth);
+      view.h = Math.max(1, window.innerHeight);
+      view.scale = 1;
+      canvas.width = Math.max(2, Math.round(view.w * px));
+      canvas.height = Math.max(2, Math.round(view.h * px));
+      view.dpr = px;
+    }
     ctx = canvas.getContext("2d", { alpha: false });
     ctx.imageSmoothingEnabled = false;
-
-    html.classList.remove("cramped");
-    model = Vehicle.create(1440, 900, false);
+    model = Vehicle.create(view.w, view.h, portrait);
     if (elapsed != null) Vehicle.seek(model, elapsed, performance.now());
     geo = model.ui;
 
@@ -790,7 +807,7 @@
         cursor += el.offsetHeight + 6;
       });
     }
-    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 16, A.home.y - 28);
+    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 18, A.home.y - 78);
     if (A.stadium && byId.education) {
       add("education", A.stadium.x - byId.education.offsetWidth - 20, A.stadium.y - byId.education.offsetHeight - 92);
     }
