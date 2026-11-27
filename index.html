@@ -64,7 +64,6 @@
         </nav>
 
         <button type="button" class="hot" id="ship-hot" aria-label="Play the mission sequence"></button>
-        <button type="button" class="ghost" id="skip-mission" hidden>skip mission</button>
         <p id="mission-caption" class="caption" hidden></p>
         <div id="payloads"></div>
         <button type="button" class="hot" id="term-hot" aria-label="Open the flight computer"></button>
@@ -88,7 +87,10 @@
 
         <p class="legal"><a href="resume.pdf" target="_blank" rel="noopener noreferrer">resume.pdf</a> · © 2025–2026 Colin Lee</p>
 
-        <div class="term" id="term" role="dialog" aria-modal="true" aria-labelledby="term-title" hidden>
+    </div>
+
+    <button type="button" class="ghost" id="skip-mission" hidden>skip mission</button>
+    <div class="term" id="term" role="dialog" aria-modal="true" aria-labelledby="term-title" hidden>
             <div class="term-bar">
                 <span id="term-title">flight computer</span>
                 <button type="button" class="ghost" id="term-close">close</button>
@@ -100,7 +102,6 @@
                 <input id="term-in" type="text" maxlength="80" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="help">
             </form>
         </div>
-    </div>
 
     <button type="button" class="scrim" id="scrim" aria-label="Close section" hidden></button>
 
@@ -146,7 +147,7 @@
                 <li><a href="#why-rocket">Why a rocket?</a><span>SpaceX, Starlink, and aviation</span></li>
                 <li><a href="#about">About</a><span>LSU senior, cyber risk, CS minor</span></li>
                 <li><a href="#education">Education</a><span>ISDS, Spring 2027, GPA 3.8</span></li>
-                <li><a href="#certifications">Certifications</a><span>In progress, plus CISA and CISSP coursework</span></li>
+                <li><a href="#certifications">Certifications</a><span>AWS, SAFe, and Gemini earned; three more in progress</span></li>
                 <li><a href="#projects">Projects</a><span>Vexel and a password strength tool</span></li>
                 <li><a href="#skills">Skills</a><span>Programming, security, data, tools</span></li>
                 <li><a href="#experience">Experience</a><span>Administrative Assistant, MAC-RE LLC</span></li>
@@ -224,16 +225,93 @@
 
         <section id="certifications">
             <h2>Certifications</h2>
-            <h3 class="cert-kicker">In progress</h3>
-            <ul class="cert-list">
-                <li>SAFe Scrum Master (Scaled Agile)</li>
-                <li>CompTIA Network+</li>
-                <li>AWS Certified Cloud Practitioner</li>
+            <h3 class="cert-kicker">Earned</h3>
+            <ul class="badges">
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <path d="M18 44c-7 0-12-5-12-11s6-10 12-9c1-8 9-13 17-11 5-6 16-6 21 1 8-1 14 5 14 12 0 8-7 14-15 14H18z" fill="none" stroke="currentColor"/>
+                            <path d="M24 40h24M28 34h16" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">Earned</span>
+                            <span class="badge-name">AWS Certified Cloud Practitioner</span>
+                            <span class="badge-meta">Amazon Web Services · CLF-C02 · passed Nov 25, 2026</span>
+                        </figcaption>
+                    </figure>
+                </li>
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <circle cx="36" cy="36" r="20" fill="none" stroke="currentColor"/>
+                            <path d="M28 40l8-14 8 14M30 36h12" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">Earned</span>
+                            <span class="badge-name">SAFe Scrum Master</span>
+                            <span class="badge-meta">Scaled Agile</span>
+                        </figcaption>
+                    </figure>
+                </li>
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <path d="M36 16l4 12h12l-10 7 4 12-10-7-10 7 4-12-10-7h12z" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">Earned</span>
+                            <span class="badge-name">Gemini for University Students (Google)</span>
+                            <span class="badge-meta">Google</span>
+                        </figcaption>
+                    </figure>
+                </li>
             </ul>
-            <h3 class="cert-kicker">Coursework</h3>
-            <p>Coursework covering Certified Information Systems Auditor (CISA) material, through LSU ISDS 4096: Cyber Risk Management. The course focuses on auditing, control, and security of information systems. This is study, not a certification held.</p>
-            <hr class="section-divider">
-            <p>Coursework covering Certified Information Systems Security Professional (CISSP) material, aligned with ISDS 4070 special topics. Passing the exam grants credit hours. This is study, not a certification held.</p>
+            <h3 class="cert-kicker">In progress</h3>
+            <ul class="badges">
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <circle cx="22" cy="36" r="6" fill="none" stroke="currentColor"/>
+                            <circle cx="50" cy="24" r="6" fill="none" stroke="currentColor"/>
+                            <circle cx="50" cy="48" r="6" fill="none" stroke="currentColor"/>
+                            <path d="M28 36h16M28 34l16-8M28 38l16 8" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">In progress</span>
+                            <span class="badge-name">CompTIA Network+</span>
+                            <span class="badge-meta">CompTIA</span>
+                        </figcaption>
+                    </figure>
+                </li>
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <path d="M36 14l16 8v14c0 12-8 18-16 22-8-4-16-10-16-22V22z" fill="none" stroke="currentColor"/>
+                            <circle cx="36" cy="34" r="4" fill="none" stroke="currentColor"/>
+                            <path d="M36 38v8" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">In progress</span>
+                            <span class="badge-name">ISC2 CISSP</span>
+                            <span class="badge-meta">ISC2</span>
+                        </figcaption>
+                    </figure>
+                </li>
+                <li>
+                    <figure class="badge" data-verify="">
+                        <svg viewBox="0 0 72 72" aria-hidden="true">
+                            <circle cx="36" cy="36" r="18" fill="none" stroke="currentColor"/>
+                            <path d="M28 36l6 6 12-14" fill="none" stroke="currentColor"/>
+                        </svg>
+                        <figcaption>
+                            <span class="badge-state">In progress</span>
+                            <span class="badge-name">ISACA CISA</span>
+                            <span class="badge-meta">ISACA</span>
+                        </figcaption>
+                    </figure>
+                </li>
+            </ul>
+            <p>Each emblem is an original line sketch, not an official badge. A verification link can be added later on the <code>data-verify</code> attribute of each figure.</p>
         </section>
 
         <section id="projects">
@@ -467,8 +545,8 @@
             <li>I once debugged code all night during an LSU game week.</li>
             <li>Vexel is a full-stack web app, live in beta.</li>
             <li>Summer 2024: administrative assistant, MAC-RE LLC, Metairie.</li>
-            <li>Studying CISA material in ISDS 4096 and CISSP material in ISDS 4070. Not certifications held.</li>
-            <li>In progress: SAFe Scrum Master (Scaled Agile), CompTIA Network+, AWS Certified Cloud Practitioner.</li>
+            <li>Earned: AWS Certified Cloud Practitioner (CLF-C02, Nov 25, 2026), SAFe Scrum Master, and Gemini for University Students (Google).</li>
+            <li>In progress: CompTIA Network+, ISC2 CISSP, and ISACA CISA.</li>
             <li>Other sites and projects: github.com/colinlee05. LinkedIn: colinlee05.</li>
         </ul>
         <button type="button" class="ghost" id="summary-close">close</button>

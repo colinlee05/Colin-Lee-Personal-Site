@@ -18,8 +18,8 @@
     "I once debugged code all night during an LSU game week.",
     "Vexel is a full-stack web app, live in beta.",
     "Summer 2024: administrative assistant, MAC-RE LLC, Metairie.",
-    "Studying CISA material in ISDS 4096 and CISSP material in ISDS 4070. Not certifications held.",
-    "In progress: SAFe Scrum Master (Scaled Agile), CompTIA Network+, AWS Certified Cloud Practitioner.",
+    "Earned: AWS Certified Cloud Practitioner (CLF-C02, Nov 25, 2026), SAFe Scrum Master, and Gemini for University Students (Google).",
+    "In progress: CompTIA Network+, ISC2 CISSP, and ISACA CISA.",
     "Other sites and projects: github.com/colinlee05. LinkedIn: colinlee05."
   ];
 
@@ -390,12 +390,13 @@
         { x: x + Math.cos(t1) * radius, y: yTop - len, z: z + Math.sin(t1) * radius },
         0.85, 0.9);
     }
+    var rng = mulberry32((Math.round(x * 17 + z * 31 + yTop * 13) ^ 0xbe11) >>> 0);
     var k;
     for (k = 0; k < 8; k++) {
-      var a = Math.random() * Math.PI * 2;
+      var a = rng() * Math.PI * 2;
       dots.push({
         x: x + Math.cos(a) * radius * 0.7,
-        y: yTop - len * (0.3 + Math.random() * 0.7),
+        y: yTop - len * (0.3 + rng() * 0.7),
         z: z + Math.sin(a) * radius * 0.7,
         nx: Math.cos(a), ny: -0.4, nz: Math.sin(a), tile: 0
       });
@@ -975,37 +976,70 @@
   }
 
   function beatFor(t) {
-    if (t < 1.45) return "Ship quick-disconnect swinging clear.";
-    if (t < 2.55) return "Raptors lighting. Water deluge on the mount.";
-    if (t < 5.1) return "Liftoff.";
-    if (t < 7.2) return "Tower clear.";
-    if (t < 10.5) return "Max-Q. Engines easing.";
-    if (t < 12.2) return "MECO. Ship engines light through the vented ring.";
-    if (t < 13.6) return "Hot staging. The ship pulls away.";
-    if (t < 14.8) return "Booster flips, engines already lit.";
-    if (t < 17.2) return "Boostback burn. Nose toward the pad.";
-    if (t < 20.6) return "Coast. Grid fins steering.";
-    if (t < 23.4) return "Landing burn. Thirteen engines.";
-    if (t < 25.2) return "Three center engines. Diverting into the arms.";
-    if (t < 25.6) return "Near hover between the chopsticks.";
-    if (t < 26.7) return "Arms closing over the grid fins.";
-    if (t < 28.2) return "Engines off. Booster sits on the arms.";
-    if (t < 32.2) return "Pulling back. Ship climbing to orbit.";
-    if (t < 33.2) return "Ship on orbit.";
-    if (t < 34.2) return "Payload door opening.";
-    if (t < 37.2) return "Satellites deploying.";
-    if (t < 47.4) return "Starlink Aviation: in-flight Wi-Fi at 35,000 ft.";
-    if (t < 49.0) return "Deorbit burn. Engines face the direction of flight.";
-    if (t < 55.4) return "Reentry. Plasma on the heat shield.";
-    if (t < 57.6) return "Flaps swing. Engines relight into the flip.";
-    if (t < 59.6) return "Landing burn. Three sea-level Raptors.";
-    if (t < 60.3) return "Ship hovering between the open arms.";
-    if (t < 61.2) return "Arms closing on the catch pins.";
-    if (t < 63.4) return "Engines off. The ship sits on the arms.";
+    if (t < 2.9) return "Ship quick-disconnect swinging clear.";
+    if (t < 5.2) return "Raptors lighting. Water deluge on the mount.";
+    if (t < 10.4) return "Liftoff.";
+    if (t < 14.6) return "Tower clear.";
+    if (t < 21) return "Max-Q. Engines easing.";
+    if (t < 24.6) return "MECO. Ship engines light through the vented ring.";
+    if (t < 27.4) return "Hot staging. The ship pulls away.";
+    if (t < 29.8) return "Booster flips, engines already lit.";
+    if (t < 34.6) return "Boostback burn. Nose toward the pad.";
+    if (t < 41.4) return "Coast. Grid fins steering.";
+    if (t < 47) return "Landing burn. Thirteen engines.";
+    if (t < 50.6) return "Three center engines. Diverting into the arms.";
+    if (t < 51.4) return "Near hover between the chopsticks.";
+    if (t < 53.6) return "Arms closing over the grid fins.";
+    if (t < 56.6) return "Engines off. Booster sits on the arms.";
+    if (t < 64) return "Pulling back. Ship climbing to orbit.";
+    if (t < 68) return "Ship on orbit.";
+    if (t < 72) return "Payload door opening.";
+    if (t < 87) return "Satellites leaving the ship, one by one.";
+    if (t < 120) return "Arrays unfolding into the notes.";
+    if (t < 132.6) return "Starlink to the airliner. In-flight Wi-Fi at 35,000 ft.";
+    if (t < 145.6) return "Starlink to the dish in the New Orleans backyard.";
+    if (t < 152) return "Deorbit burn. Engines face the direction of flight.";
+    if (t < 164) return "Reentry. Plasma on the heat shield.";
+    if (t < 170) return "Flaps swing. Engines relight into the flip.";
+    if (t < 174) return "Landing burn. Three sea-level Raptors.";
+    if (t < 176) return "Ship hovering between the open arms.";
+    if (t < 178) return "Arms closing on the catch pins.";
     return "Back on the pad.";
   }
 
-  function poseAt(model, t) {
+  function legacyClock(real) {
+    if (real < 64) return real * 0.5;
+    if (real < 143) return 32;
+    if (real < 146) return mix(32, 44, smooth((real - 143) / 3));
+    var u = Math.min(1, (real - 146) / 32);
+    return 44 + u * 22.6;
+  }
+
+  function poseAt(model, realT) {
+    var pose = poseAtLegacy(model, legacyClock(realT));
+    pose.t = realT;
+    pose.done = realT >= 180;
+    pose.beat = beatFor(realT);
+    if (realT >= 64 && realT < 146) {
+      pose.worldAlpha = 0;
+      pose.padFade = 0;
+      pose.landShow = 0;
+      pose.heroIn = 0;
+      pose.useHero = false;
+      pose.earthAlpha = 1;
+      pose.earthIn = 1;
+      pose.scene = "earth";
+      pose.depart = 0;
+      pose.deorbit = 0;
+      pose.entry = 0;
+      pose.retro = 0;
+      pose.door = ramp(realT, 66, 69.2) * (1 - ramp(realT, 85.5, 88));
+      pose.ang = mix(0.99, 1.084, clamp((realT - 64) / 82, 0, 1));
+    }
+    return pose;
+  }
+
+  function poseAtLegacy(model, t) {
     var pose = padPose();
     pose.t = t;
     pose.beat = beatFor(t);
@@ -1523,201 +1557,353 @@
   }
 
   function drawStadium(ctx, x, y, s) {
-    var w = 92 * s;
-    var bowl = 28 * s;
+    var w = 96 * s;
+    var bowl = 30 * s;
+    ctx.save();
+    ctx.lineWidth = 1.15;
+    ctx.strokeStyle = INK;
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.52, y);
-    ctx.lineTo(x - w * 0.52, y - bowl * 0.72);
-    ctx.quadraticCurveTo(x - w * 0.2, y - bowl * 1.35, x, y - bowl * 0.55);
-    ctx.quadraticCurveTo(x + w * 0.22, y - bowl * 1.55, x + w * 0.52, y - bowl);
+    ctx.moveTo(x - w * 0.5, y);
+    ctx.lineTo(x - w * 0.5, y - bowl * 0.55);
+    ctx.quadraticCurveTo(x - w * 0.22, y - bowl * 1.15, x, y - bowl * 0.42);
+    ctx.quadraticCurveTo(x + w * 0.28, y - bowl * 1.35, x + w * 0.52, y - bowl * 0.7);
     ctx.lineTo(x + w * 0.52, y);
-    ctx.closePath();
+    ctx.moveTo(x - w * 0.42, y - bowl * 0.28);
+    ctx.quadraticCurveTo(x, y - bowl * 0.72, x + w * 0.4, y - bowl * 0.36);
+    ctx.moveTo(x - w * 0.34, y - 2.2 * s);
+    ctx.quadraticCurveTo(x, y - bowl * 0.22, x + w * 0.36, y - 3 * s);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x - w * 0.34, y - 3 * s);
-    ctx.quadraticCurveTo(x, y - bowl * 0.42, x + w * 0.34, y - 4 * s);
-    ctx.stroke();
-    ctx.strokeRect(x - w * 0.1, y - bowl * 0.28, w * 0.2, bowl * 0.16);
-    function mast(mx, top) {
+    var deck;
+    for (deck = 1; deck <= 3; deck++) {
+      ctx.globalAlpha = 0.55;
+      ctx.beginPath();
+      ctx.moveTo(x - w * (0.46 - deck * 0.04), y - bowl * (0.16 + deck * 0.12));
+      ctx.quadraticCurveTo(x, y - bowl * (0.28 + deck * 0.16), x + w * (0.44 - deck * 0.03), y - bowl * (0.18 + deck * 0.13));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeRect(x - w * 0.08, y - bowl * 0.34, w * 0.16, bowl * 0.12);
+    function bank(mx, top) {
       ctx.beginPath();
       ctx.moveTo(mx, y);
       ctx.lineTo(mx, y - top);
-      ctx.moveTo(mx - 5 * s, y - top);
-      ctx.lineTo(mx + 5 * s, y - top);
-      ctx.moveTo(mx - 3 * s, y - top + 3 * s);
-      ctx.lineTo(mx + 3 * s, y - top + 3 * s);
+      ctx.moveTo(mx - 1.4 * s, y);
+      ctx.lineTo(mx - 1.4 * s, y - top);
+      var lamp;
+      for (lamp = 0; lamp < 3; lamp++) {
+        var ly = y - top + lamp * 3.2 * s;
+        ctx.moveTo(mx - 6 * s, ly);
+        ctx.lineTo(mx + 6 * s, ly);
+        ctx.moveTo(mx - 6 * s, ly);
+        ctx.lineTo(mx - 6 * s, ly + 1.6 * s);
+        ctx.moveTo(mx + 6 * s, ly);
+        ctx.lineTo(mx + 6 * s, ly + 1.6 * s);
+      }
       ctx.stroke();
     }
-    mast(x - w * 0.58, bowl * 1.15);
-    mast(x + w * 0.58, bowl * 1.35);
+    bank(x - w * 0.62, bowl * 1.35);
+    bank(x + w * 0.64, bowl * 1.55);
+    ctx.restore();
   }
 
   function drawMemorial(ctx, x, y, s) {
-    var w = 8 * s;
-    var h = 72 * s;
+    var w = 11 * s;
+    var h = 78 * s;
+    ctx.save();
+    ctx.lineWidth = 1.15;
+    ctx.strokeStyle = INK;
     ctx.beginPath();
     ctx.moveTo(x - w, y);
-    ctx.lineTo(x - w * 0.7, y - h);
-    ctx.lineTo(x + w * 0.7, y - h);
+    ctx.lineTo(x - w * 0.72, y - h);
+    ctx.lineTo(x + w * 0.72, y - h);
     ctx.lineTo(x + w, y);
-    ctx.moveTo(x - w * 1.15, y - h);
-    ctx.lineTo(x, y - h - 18 * s);
-    ctx.lineTo(x + w * 1.15, y - h);
-    ctx.moveTo(x, y - h * 0.72);
-    ctx.arc(x, y - h * 0.72, 4.2 * s, 0, Math.PI * 2);
-    ctx.moveTo(x, y - h * 0.72 - 4.2 * s);
-    ctx.lineTo(x, y - h * 0.72 + 4.2 * s);
-    ctx.moveTo(x - 4.2 * s, y - h * 0.72);
-    ctx.lineTo(x + 4.2 * s, y - h * 0.72);
+    ctx.moveTo(x - w * 0.86, y - h * 0.08);
+    ctx.lineTo(x + w * 0.86, y - h * 0.08);
+    var course;
+    for (course = 1; course <= 6; course++) {
+      var cy = y - h * (0.16 + course * 0.1);
+      var inset = w * (0.72 + course * 0.03);
+      ctx.moveTo(x - inset, cy);
+      ctx.lineTo(x + inset, cy);
+    }
     ctx.stroke();
+    ctx.strokeRect(x - w * 0.42, y - h * 0.22, w * 0.84, h * 0.1);
+    var arch;
+    for (arch = -1; arch <= 1; arch += 2) {
+      ctx.beginPath();
+      ctx.moveTo(x + arch * w * 0.28, y - h + 2 * s);
+      ctx.lineTo(x + arch * w * 0.28, y - h + 10 * s);
+      ctx.quadraticCurveTo(x + arch * w * 0.28, y - h + 14 * s, x + arch * w * 0.08, y - h + 14 * s);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(x - w * 1.05, y - h);
+    ctx.lineTo(x, y - h - 16 * s);
+    ctx.lineTo(x + w * 1.05, y - h);
+    ctx.moveTo(x - w * 0.55, y - h - 6 * s);
+    ctx.lineTo(x, y - h - 14 * s);
+    ctx.lineTo(x + w * 0.55, y - h - 6 * s);
+    ctx.stroke();
+    var clockY = y - h * 0.72;
+    ctx.beginPath();
+    ctx.arc(x, clockY, 5.2 * s, 0, Math.PI * 2);
+    ctx.moveTo(x, clockY);
+    ctx.lineTo(x, clockY - 3.4 * s);
+    ctx.moveTo(x, clockY);
+    ctx.lineTo(x + 2.6 * s, clockY + 0.4 * s);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function drawHome(ctx, x, y, s) {
-    var w = 62 * s;
-    var story = 14 * s;
+    var w = 74 * s;
+    var story = 16 * s;
     var h = story * 2;
-    ctx.strokeRect(x - w * 0.38, y - h, w * 0.76, h);
+    ctx.save();
+    ctx.lineWidth = 1.15;
+    ctx.strokeStyle = INK;
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.46, y - h);
-    ctx.lineTo(x, y - h - 13 * s);
-    ctx.lineTo(x + w * 0.46, y - h);
-    ctx.moveTo(x - w * 0.38, y - story);
-    ctx.lineTo(x + w * 0.38, y - story);
+    ctx.moveTo(x - w * 0.5, y - h);
+    ctx.lineTo(x, y - h - 14 * s);
+    ctx.lineTo(x + w * 0.5, y - h);
+    ctx.moveTo(x - w * 0.4, y - h);
+    ctx.lineTo(x - w * 0.4, y);
+    ctx.moveTo(x + w * 0.4, y - h);
+    ctx.lineTo(x + w * 0.4, y);
+    ctx.moveTo(x - w * 0.4, y - story);
+    ctx.lineTo(x + w * 0.4, y - story);
+    var row;
+    for (row = 1; row <= 5; row++) {
+      ctx.moveTo(x - w * 0.4, y - row * (story / 3.1));
+      ctx.lineTo(x + w * 0.4, y - row * (story / 3.1));
+      ctx.moveTo(x - w * 0.4, y - story - row * (story / 3.1));
+      ctx.lineTo(x + w * 0.4, y - story - row * (story / 3.1));
+    }
+    var sh;
+    for (sh = 0; sh < 5; sh++) {
+      var sy = y - h - 2 * s - sh * 2.1 * s;
+      var inset = (sh + 1) * w * 0.07;
+      ctx.moveTo(x - w * 0.46 + inset, sy);
+      ctx.lineTo(x + w * 0.46 - inset, sy);
+    }
     ctx.stroke();
-    ctx.strokeRect(x - w * 0.26, y - h + 4 * s, 8 * s, 6 * s);
-    ctx.strokeRect(x + w * 0.04, y - h + 4 * s, 8 * s, 6 * s);
+    function windowFrame(wx, wy, ww, hh) {
+      ctx.strokeRect(wx, wy, ww, hh);
+      ctx.beginPath();
+      ctx.moveTo(wx + ww / 2, wy);
+      ctx.lineTo(wx + ww / 2, wy + hh);
+      ctx.moveTo(wx, wy + hh / 2);
+      ctx.lineTo(wx + ww, wy + hh / 2);
+      ctx.stroke();
+    }
+    windowFrame(x - w * 0.3, y - h + 3.2 * s, 9 * s, 7 * s);
+    windowFrame(x + w * 0.05, y - h + 3.2 * s, 9 * s, 7 * s);
+    windowFrame(x + w * 0.16, y - story + 3 * s, 8 * s, 7 * s);
+    ctx.strokeRect(x - w * 0.08, y - story + 2 * s, 7 * s, story - 2 * s);
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.5, y - story * 0.15);
-    ctx.lineTo(x - w * 0.5, y);
-    ctx.moveTo(x - w * 0.5, y - story * 0.62);
-    ctx.lineTo(x - w * 0.08, y - story * 0.62);
-    ctx.lineTo(x - w * 0.08, y);
+    ctx.moveTo(x - w * 0.05, y - story + 2 * s);
+    ctx.lineTo(x - w * 0.05, y);
+    ctx.moveTo(x - w * 0.08, y - story * 0.45);
+    ctx.lineTo(x - w * 0.01, y - story * 0.45);
     ctx.stroke();
-    ctx.strokeRect(x - w * 0.06, y - story + 2 * s, 6 * s, story - 2 * s);
-    ctx.strokeRect(x + w * 0.38, y - story * 0.9, w * 0.28, story * 0.9);
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.44, y - story * 0.72);
-    ctx.lineTo(x + w * 0.6, y - story * 0.72);
+    ctx.moveTo(x - w * 0.46, y);
+    ctx.lineTo(x - w * 0.46, y - story * 0.15);
+    ctx.moveTo(x - w * 0.46, y - story * 0.62);
+    ctx.lineTo(x - w * 0.12, y - story * 0.62);
+    ctx.lineTo(x - w * 0.12, y);
+    ctx.moveTo(x - w * 0.34, y);
+    ctx.lineTo(x - w * 0.34, y - story * 0.62);
+    ctx.stroke();
+    ctx.strokeRect(x + w * 0.4, y - story * 0.85, w * 0.22, story * 0.85);
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.4, y - story * 0.42);
+    ctx.lineTo(x + w * 0.62, y - story * 0.42);
+    ctx.moveTo(x + w * 0.46, y - story * 0.72);
+    ctx.lineTo(x + w * 0.58, y - story * 0.72);
     ctx.stroke();
     var railY = y - story * 0.62;
-    var beadX = x - w * 0.48;
-    var beads = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
-    var bead;
-    var prevFill = ctx.fillStyle;
-    ctx.strokeStyle = "#c6a15a";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(beadX - 2 * s, railY);
-    ctx.lineTo(beadX + 28 * s, railY);
-    ctx.stroke();
-    for (bead = 0; bead < 7; bead++) {
-      var beadScale = s;
-      var drop = (3.2 + (bead % 2) * 2.2) * beadScale;
-      ctx.strokeStyle = beads[bead % 3];
+    var beadX = x - w * 0.44;
+    var colors = ["#7a4ea3", "#2f8a5b", "#c6a15a"];
+    var strand;
+    for (strand = 0; strand < 3; strand++) {
+      ctx.strokeStyle = colors[strand];
       ctx.beginPath();
-      ctx.moveTo(beadX + bead * 4.2 * beadScale, railY);
-      ctx.lineTo(beadX + bead * 4.2 * beadScale, railY + drop);
+      var b;
+      for (b = 0; b <= 8; b++) {
+        var bx = beadX + strand * 7 * s + b * 3.1 * s;
+        var sag = Math.sin((b / 8) * Math.PI) * (4.5 + strand) * s;
+        if (b === 0) ctx.moveTo(bx, railY + sag);
+        else ctx.lineTo(bx, railY + sag);
+      }
       ctx.stroke();
-      ctx.fillStyle = beads[bead % 3];
-      ctx.beginPath();
-      ctx.arc(beadX + bead * 4.2 * beadScale, railY + drop + 1.6, Math.max(2.1, 2.3 * s), 0, Math.PI * 2);
-      ctx.fill();
+      for (b = 1; b < 8; b++) {
+        var cx = beadX + strand * 7 * s + b * 3.1 * s;
+        var cy = railY + Math.sin((b / 8) * Math.PI) * (4.5 + strand) * s;
+        ctx.beginPath();
+        ctx.arc(cx, cy, Math.max(1.1, 1.35 * s), 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
-    ctx.fillStyle = prevFill;
     ctx.strokeStyle = INK;
+    ctx.restore();
   }
 
   function drawSuperdome(ctx, x, y, s) {
-    var w = 34 * s;
-    var h = 16 * s;
+    var w = 46 * s;
+    var h = 22 * s;
     ctx.save();
-    ctx.fillStyle = "rgba(244,241,232,0.88)";
+    ctx.lineWidth = 1.15;
     ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x - w, y - h * 0.15);
-    ctx.quadraticCurveTo(x, y - h * 1.55, x + w, y - h * 0.15);
-    ctx.quadraticCurveTo(x, y + h * 0.15, x - w, y - h * 0.15);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(x - w, y - h * 0.22);
+    ctx.quadraticCurveTo(x, y - h * 1.7, x + w, y - h * 0.22);
     ctx.stroke();
     ctx.beginPath();
-    ctx.ellipse(x, y - h * 0.12, w * 1.08, h * 0.28, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y - h * 0.2, w * 1.05, h * 0.22, 0, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.globalAlpha = 0.35;
+    var rib;
+    for (rib = -3; rib <= 3; rib++) {
+      ctx.beginPath();
+      ctx.moveTo(x + rib * w * 0.18, y - h * 0.2);
+      ctx.quadraticCurveTo(x + rib * w * 0.08, y - h * (1.15 - Math.abs(rib) * 0.08), x + rib * w * 0.04, y - h * 1.35);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#c6a15a";
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.45, y - h * 0.2);
-    ctx.quadraticCurveTo(x, y - h * 1.15, x + w * 0.45, y - h * 0.2);
+    ctx.moveTo(x - w * 1.02, y - h * 0.08);
+    ctx.lineTo(x + w * 1.02, y - h * 0.08);
+    ctx.moveTo(x - w * 1.02, y + h * 0.02);
+    ctx.lineTo(x + w * 1.02, y + h * 0.02);
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.beginPath();
+    ctx.moveTo(x - w * 1.08, y);
+    ctx.lineTo(x - w * 0.72, y - h * 0.28);
+    ctx.moveTo(x + w * 1.08, y);
+    ctx.lineTo(x + w * 0.72, y - h * 0.28);
+    ctx.moveTo(x - w * 0.2, y);
+    ctx.lineTo(x - w * 0.05, y - h * 0.16);
+    ctx.moveTo(x + w * 0.2, y);
+    ctx.lineTo(x + w * 0.05, y - h * 0.16);
     ctx.stroke();
     ctx.restore();
   }
 
   function drawStreetcar(ctx, x, y, s) {
     ctx.save();
-    var w = 54 * s;
-    var h = 18 * s;
+    ctx.lineWidth = 1.15;
+    ctx.lineJoin = "round";
+    var L = 86 * s;
+    var H = 20 * s;
     ctx.strokeStyle = "#8a3030";
-    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.moveTo(x - w * 0.7, y - 1.5 * s);
-    ctx.lineTo(x + w * 0.7, y - 1.5 * s);
-    ctx.moveTo(x - w * 0.7, y + 1.4 * s);
-    ctx.lineTo(x + w * 0.7, y + 1.4 * s);
+    ctx.moveTo(x - L * 0.58, y - 1.1 * s);
+    ctx.lineTo(x + L * 0.58, y - 1.1 * s);
+    ctx.moveTo(x - L * 0.58, y + 1.5 * s);
+    ctx.lineTo(x + L * 0.58, y + 1.5 * s);
+    var tie;
+    for (tie = -5; tie <= 5; tie++) {
+      ctx.moveTo(x + tie * L * 0.09, y - 0.2 * s);
+      ctx.lineTo(x + tie * L * 0.09, y + 2.4 * s);
+    }
     ctx.stroke();
-    ctx.fillStyle = "#2f8a5b";
     ctx.strokeStyle = "#1f6b44";
-    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x - w / 2 + 3 * s, y);
-    ctx.lineTo(x - w / 2 + 3 * s, y - h + 3 * s);
-    ctx.quadraticCurveTo(x - w / 2, y - h - 2 * s, x - w / 2 + 8 * s, y - h - 1 * s);
-    ctx.lineTo(x + w / 2 - 8 * s, y - h - 1 * s);
-    ctx.quadraticCurveTo(x + w / 2, y - h - 2 * s, x + w / 2 - 3 * s, y - h + 3 * s);
-    ctx.lineTo(x + w / 2 - 3 * s, y);
-    ctx.closePath();
-    ctx.fill();
+    ctx.moveTo(x - L * 0.46, y);
+    ctx.lineTo(x - L * 0.46, y - H * 0.78);
+    ctx.quadraticCurveTo(x - L * 0.46, y - H * 1.05, x - L * 0.4, y - H);
+    ctx.lineTo(x + L * 0.4, y - H);
+    ctx.quadraticCurveTo(x + L * 0.46, y - H * 1.05, x + L * 0.46, y - H * 0.78);
+    ctx.lineTo(x + L * 0.46, y);
+    ctx.moveTo(x - L * 0.34, y - H);
+    ctx.lineTo(x - L * 0.34, y - H - 4.4 * s);
+    ctx.lineTo(x + L * 0.34, y - H - 4.4 * s);
+    ctx.lineTo(x + L * 0.34, y - H);
     ctx.stroke();
-    ctx.strokeStyle = "#c44747";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x - w / 2 + 4 * s, y - h * 0.46);
-    ctx.lineTo(x + w / 2 - 4 * s, y - h * 0.46);
-    ctx.moveTo(x - w / 2 + 4 * s, y - 2.4 * s);
-    ctx.lineTo(x + w / 2 - 4 * s, y - 2.4 * s);
-    ctx.stroke();
-    ctx.lineWidth = 1.2;
-    ctx.strokeStyle = "#f4f1e8";
-    var win;
-    for (win = 0; win < 5; win++) {
-      ctx.strokeRect(x - w * 0.36 + win * w * 0.15, y - h + 3.2 * s, w * 0.1, h * 0.32);
+    ctx.strokeStyle = INK;
+    var bay;
+    for (bay = 0; bay < 10; bay++) {
+      ctx.strokeRect(x - L * 0.3 + bay * L * 0.062, y - H - 3.6 * s, L * 0.04, 2.5 * s);
     }
     ctx.strokeStyle = "#1f6b44";
+    for (bay = 0; bay < 7; bay++) {
+      var bx = x - L * 0.36 + bay * L * 0.1;
+      ctx.strokeRect(bx, y - H * 0.9, L * 0.07, H * 0.46);
+      ctx.beginPath();
+      ctx.moveTo(bx + L * 0.035, y - H * 0.9);
+      ctx.lineTo(bx + L * 0.035, y - H * 0.44);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#a33b3b";
     ctx.beginPath();
-    ctx.arc(x - w * 0.28, y, 2.4 * s, 0, Math.PI * 2);
-    ctx.arc(x + w * 0.28, y, 2.4 * s, 0, Math.PI * 2);
-    ctx.moveTo(x, y - h - 1 * s);
-    ctx.lineTo(x + 8 * s, y - h - 12 * s);
-    ctx.moveTo(x - w * 0.55, y - h - 12 * s);
-    ctx.lineTo(x + w * 0.55, y - h - 12 * s);
+    ctx.moveTo(x - L * 0.44, y - H * 0.36);
+    ctx.lineTo(x + L * 0.44, y - H * 0.36);
+    ctx.stroke();
+    ctx.strokeStyle = INK;
+    ctx.strokeRect(x - L * 0.44, y - H * 0.72, L * 0.055, H * 0.72);
+    ctx.strokeRect(x + L * 0.385, y - H * 0.72, L * 0.055, H * 0.72);
+    function truck(tx) {
+      ctx.strokeStyle = "#1f6b44";
+      ctx.beginPath();
+      ctx.moveTo(tx - 8 * s, y - 0.6 * s);
+      ctx.lineTo(tx + 8 * s, y - 0.6 * s);
+      ctx.moveTo(tx - 6 * s, y - 0.6 * s);
+      ctx.lineTo(tx - 6 * s, y + 1.4 * s);
+      ctx.moveTo(tx + 6 * s, y - 0.6 * s);
+      ctx.lineTo(tx + 6 * s, y + 1.4 * s);
+      ctx.moveTo(tx, y - 0.6 * s);
+      ctx.lineTo(tx, y - 3 * s);
+      ctx.stroke();
+      ctx.strokeStyle = INK;
+      ctx.beginPath();
+      ctx.arc(tx - 6 * s, y + 0.5 * s, 2.2 * s, 0, Math.PI * 2);
+      ctx.arc(tx + 6 * s, y + 0.5 * s, 2.2 * s, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    truck(x - L * 0.26);
+    truck(x + L * 0.26);
+    ctx.beginPath();
+    ctx.moveTo(x - L * 0.6, y - H - 13 * s);
+    ctx.lineTo(x + L * 0.6, y - H - 13 * s);
+    ctx.moveTo(x + 1 * s, y - H - 4 * s);
+    ctx.lineTo(x + 9 * s, y - H - 13 * s);
     ctx.stroke();
     ctx.restore();
   }
 
   function drawDish(ctx, x, y, s) {
+    ctx.save();
+    ctx.lineWidth = 1.15;
+    ctx.strokeStyle = INK;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + 2 * s, y - 11 * s);
-    ctx.moveTo(x - 3 * s, y);
-    ctx.lineTo(x + 7 * s, y);
+    ctx.lineTo(x, y - 8 * s);
+    ctx.moveTo(x - 4 * s, y);
+    ctx.lineTo(x + 5 * s, y);
+    ctx.moveTo(x - 2.2 * s, y - 1.5 * s);
+    ctx.lineTo(x + 2.2 * s, y - 1.5 * s);
     ctx.stroke();
     ctx.save();
-    ctx.translate(x + 2 * s, y - 12 * s);
-    ctx.rotate(-0.7);
-    ctx.strokeRect(-8 * s, -4.5 * s, 16 * s, 9 * s);
+    ctx.translate(x, y - 10 * s);
+    ctx.rotate(-0.55);
+    ctx.strokeRect(-9 * s, -5 * s, 18 * s, 10 * s);
+    var g;
+    for (g = 1; g <= 3; g++) {
+      ctx.beginPath();
+      ctx.moveTo(-9 * s + g * 4.2 * s, -5 * s);
+      ctx.lineTo(-9 * s + g * 4.2 * s, 5 * s);
+      ctx.moveTo(-9 * s, -5 * s + g * 2.4 * s);
+      ctx.lineTo(9 * s, -5 * s + g * 2.4 * s);
+      ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.moveTo(-5 * s, -4.5 * s);
-    ctx.lineTo(5 * s, 4.5 * s);
+    ctx.moveTo(0, 5 * s);
+    ctx.lineTo(0, 8 * s);
+    ctx.moveTo(-3 * s, 8 * s);
+    ctx.lineTo(3 * s, 8 * s);
     ctx.stroke();
+    ctx.restore();
     ctx.restore();
   }
 
@@ -1829,12 +2015,7 @@
 
   var SKY = "#1c1a21";
 
-  function lodOf(pose, cam, len) {
-    var px = Math.abs((len || 50) * ((cam && cam.scale) || 1));
-    var tilt = Math.abs(pose.rot || 0) % 180;
-    if (tilt > 90) tilt = 180 - tilt;
-    if (tilt > 20 || px < 110) return 0;
-    if (tilt > 8 || px < 165) return 1;
+  function lodOf() {
     return 2;
   }
 
@@ -1877,21 +2058,6 @@
       }
       upper.push(uP);
       lower.push(lP);
-    }
-    var measured = 0;
-    for (i = 0; i <= steps; i++) {
-      measured += Math.hypot(upper[i].x - lower[i].x, upper[i].y - lower[i].y);
-    }
-    measured /= (steps + 1);
-    var targetW = al / 5.5;
-    if (measured > 0.5 && measured < targetW * 0.82) {
-      var grow = targetW / measured;
-      for (i = 0; i <= steps; i++) {
-        var mx = (upper[i].x + lower[i].x) * 0.5;
-        var my = (upper[i].y + lower[i].y) * 0.5;
-        upper[i] = { x: mx + (upper[i].x - mx) * grow, y: my + (upper[i].y - my) * grow };
-        lower[i] = { x: mx + (lower[i].x - mx) * grow, y: my + (lower[i].y - my) * grow };
-      }
     }
     ctx.beginPath();
     ctx.moveTo(lower[0].x, lower[0].y);
@@ -2031,13 +2197,6 @@
     var lod = lodOf(pose, cam, body.length);
     var flaps = body.flaps || [];
     var i;
-    var tilt = Math.abs(pose.rot || 0) % 180;
-    if (tilt > 90) tilt = 180 - tilt;
-    var profile = body.kind === "ship" && tilt > 42;
-    if (profile) {
-      drawBellyProfile(ctx, pose, cam, alpha);
-      return;
-    }
     for (i = 0; i < flaps.length; i++) if (flaps[i].far) drawFlapShape(ctx, flaps[i], pose, cam, alpha);
     fillSilhouette(ctx, body, pose, cam, alpha, lod < 2);
     {
@@ -2070,30 +2229,38 @@
 
   function strokeAll(ctx, lines, pose, cam, alpha) {
     var i;
-    var vw = ctx.canvas.clientWidth || 1440;
-    var vh = ctx.canvas.clientHeight || 900;
-    var margin = 140;
+    var margin = 180;
+    var buckets = {};
+    var order = [];
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = INK;
     for (i = 0; i < lines.length; i++) {
       var ln = lines[i];
-      if (ln.alpha <= 0) continue;
+      if (!ln || ln.alpha <= 0) continue;
       var a = project(pose ? xform(ln.a, pose) : ln.a, cam);
       var b = project(pose ? xform(ln.b, pose) : ln.b, cam);
-      if ((a.x < -margin && b.x < -margin) || (a.x > vw + margin && b.x > vw + margin)) continue;
-      if ((a.y < -margin && b.y < -margin) || (a.y > vh + margin && b.y > vh + margin)) continue;
-      var ax = Math.round(a.x * 2) / 2;
-      var ay = Math.round(a.y * 2) / 2;
-      var bx = Math.round(b.x * 2) / 2;
-      var by = Math.round(b.y * 2) / 2;
-      if (Math.hypot(bx - ax, by - ay) < 0.6) continue;
+      if ((a.x < -margin && b.x < -margin) || (a.x > 1620 && b.x > 1620)) continue;
+      if ((a.y < -margin && b.y < -margin) || (a.y > 1080 && b.y > 1080)) continue;
+      var w = Math.max(1, Math.min(1.7, ln.w || 1.15));
+      var key = w.toFixed(2) + "|" + ln.alpha.toFixed(2);
+      if (!buckets[key]) {
+        buckets[key] = [];
+        order.push(key);
+      }
+      buckets[key].push(a.x, a.y, b.x, b.y);
+    }
+    for (i = 0; i < order.length; i++) {
+      var parts = order[i].split("|");
+      var seg = buckets[order[i]];
+      ctx.lineWidth = Number(parts[0]);
+      ctx.globalAlpha = alpha * Number(parts[1]);
       ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(bx, by);
-      ctx.globalAlpha = alpha * ln.alpha;
-      var zoom = cam && cam.scale ? cam.scale / 5 : 1;
-      ctx.lineWidth = Math.max(1, Math.min(1.65, (ln.w || 1.15) * (0.82 + 0.22 * Math.min(zoom, 1.5))));
+      var k;
+      for (k = 0; k < seg.length; k += 4) {
+        ctx.moveTo(seg[k], seg[k + 1]);
+        ctx.lineTo(seg[k + 2], seg[k + 3]);
+      }
       ctx.stroke();
     }
   }
@@ -2828,11 +2995,11 @@
     model._cards = cardsFor(pose, model, {
       cx: cx, cy: cy, orbit: orbit, ang: a, radius: radius
     });
+    drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
     drawSats(ctx, model._cards, pose);
     drawAirliner(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
     drawHomeLink(ctx, model, pose, model._cards, { cx: cx, cy: cy, radius: radius });
-    drawNorthAmerica(ctx, cx, cy, radius, pose.earthAlpha || 1);
-    if ((pose.t || 0) > 33 && (pose.t || 0) < 48.6 && (pose.earthAlpha || 0) > 0.35) {
+    if ((pose.t || 0) > 64 && (pose.t || 0) < 118 && (pose.earthAlpha || 0) > 0.35) {
       var coast = globePoint(30.2, -91.05, cx, cy, radius);
       var nola = globePoint(29.95, -90.25, cx, cy, radius);
       ctx.fillStyle = INK;
@@ -2867,18 +3034,23 @@
   }
 
   function cardsFor(pose, model, geo) {
-    if (!pose || !geo || pose.t < 32.7) return [];
+    if (!pose || !geo || pose.t < 72) return [];
     var out = [];
     var earthA = pose.earthAlpha == null ? 1 : pose.earthAlpha;
     var i;
     var latest = -1;
     for (i = 0; i < FACTS.length; i++) {
-      var born = 32.85 + i * 0.92;
-      var age = pose.t - born;
+      var leave = 72 + i * 1.75;
+      var age = pose.t - leave;
       if (age < 0) break;
-      var along = smooth(clamp(age / 0.8, 0, 1));
-      var unfold = smooth(clamp((age - 0.62) / 0.85, 0, 1));
-      var cardIn = unfold > 0.98 ? smooth(clamp((age - 1.5) / 0.32, 0, 1)) : 0;
+      var along = smooth(clamp(age / 1.35, 0, 1));
+      var factAt = 87 + i * 4;
+      var unfold = smooth(clamp((pose.t - factAt) / 1.15, 0, 1));
+      var cardIn = smooth(clamp((pose.t - factAt - 1.05) / 0.4, 0, 1));
+      var cardOut = i === FACTS.length - 1
+        ? 1 - ramp(pose.t, 119, 120.2)
+        : 1 - ramp(pose.t, factAt + 3.5, factAt + 3.95);
+      cardIn *= cardOut;
       if (cardIn > 0.2) latest = i;
       var ang = mix(geo.ang - 0.012, geo.ang - (i + 1) * 0.21, along);
       var satX = geo.cx + Math.cos(ang) * geo.orbit;
@@ -3064,12 +3236,12 @@
 
   function drawAirliner(ctx, model, pose, cards, geo) {
     var t = pose.t || 0;
-    if (!geo || t < 36.6 || t > 47.7 || (pose.earthAlpha || 0) < 0.08) return;
-    var fade = ramp(t, 36.6, 37.3) * (1 - ramp(t, 47.0, 47.65)) * pose.earthAlpha;
-    var panelW = model.cramped ? 250 : Math.min(460, model.w * 0.34);
-    var panelH = model.cramped ? 168 : 230;
-    var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
-    var panelY = model.cramped ? 88 : 100;
+    if (!geo || t < 120 || t > 132.6 || (pose.earthAlpha || 0) < 0.08) return;
+    var fade = ramp(t, 120, 121.3) * (1 - ramp(t, 131.3, 132.6)) * pose.earthAlpha;
+    var panelW = Math.min(model.w - 72, 1000);
+    var panelH = Math.min(model.h - 150, 560);
+    var panelX = (model.w - panelW) / 2;
+    var panelY = Math.max(64, (model.h - panelH) / 2 - 8);
     ctx.save();
     ctx.globalAlpha = 0.96 * fade;
     ctx.fillStyle = "#12161e";
@@ -3183,12 +3355,11 @@
     ctx.lineTo(L * 0.358, -0.34 * r);
     ctx.stroke();
     var win;
-    ctx.fillStyle = INK;
     for (win = 0; win < 16; win++) {
       var wx = L * 0.24 - win * L * 0.026;
       if (Math.abs(wx - L * 0.27) < L * 0.02) continue;
       if (Math.abs(wx + L * 0.16) < L * 0.02) continue;
-      ctx.fillRect(wx, -r * 0.22, 2.1, 1.6);
+      ctx.strokeRect(wx, -r * 0.28, L * 0.018, r * 0.28);
     }
     ctx.strokeRect(L * 0.255, -r * 0.62, L * 0.018, r * 1.15);
     ctx.strokeRect(-L * 0.175, -r * 0.62, L * 0.018, r * 1.15);
@@ -3243,14 +3414,13 @@
 
   function drawHomeLink(ctx, model, pose, cards, geo) {
     var t = pose.t || 0;
-    if (!geo || t < 35.4 || t > 47.5 || (pose.earthAlpha || 0) < 0.15) return;
-    var fade = ramp(t, 35.4, 36.2) * (1 - ramp(t, 46.9, 47.45)) * pose.earthAlpha;
-    var panelW = model.cramped ? 210 : 330;
-    var panelH = model.cramped ? 120 : 150;
-    var panelX = Math.max(12, Math.min(model.w - panelW - 16, geo.cx + geo.radius + 28));
-    var panelY = (model.cramped ? 88 : 100) + (model.cramped ? 168 : 230) + 14;
-    if (panelY + panelH > model.h - 70) panelY = model.h - panelH - 78;
-    var s = model.cramped ? 0.85 : 1.15;
+    if (!geo || t < 133.2 || t > 145.6 || (pose.earthAlpha || 0) < 0.15) return;
+    var fade = ramp(t, 133.2, 134.5) * (1 - ramp(t, 144.3, 145.6)) * pose.earthAlpha;
+    var panelW = Math.min(model.w - 72, 1000);
+    var panelH = Math.min(model.h - 150, 540);
+    var panelX = (model.w - panelW) / 2;
+    var panelY = Math.max(64, (model.h - panelH) / 2 - 8);
+    var s = Math.min(2.35, Math.max(1.2, panelW / 430));
     var groundY = panelY + panelH - 28;
     var houseX = panelX + panelW * 0.42;
     ctx.save();
@@ -3268,16 +3438,16 @@
     ctx.stroke();
     ctx.globalAlpha = 0.95 * fade;
     ctx.strokeStyle = INK;
-    var domeX = panelX + panelW - 58;
-    drawSuperdome(ctx, domeX, groundY, Math.max(0.85, s * 0.72));
+    var domeX = panelX + panelW * 0.84;
+    drawSuperdome(ctx, domeX, groundY, Math.min(1.7, s * 0.7));
     ctx.globalAlpha = 0.9 * fade;
     ctx.fillStyle = INK;
-    ctx.font = "10px IBM Plex Mono, ui-monospace, monospace";
-    ctx.fillText("Superdome", domeX - 28, groundY - 22);
+    ctx.font = "11px IBM Plex Mono, ui-monospace, monospace";
+    ctx.fillText("Superdome", domeX - 36, groundY - 36 * Math.min(s, 1.6));
     ctx.globalAlpha = 0.95 * fade;
-    drawHome(ctx, houseX, groundY, s);
-    drawDish(ctx, houseX + 62 * s, groundY, s);
-    drawStreetcar(ctx, panelX + 46, groundY, Math.max(0.85, s * 0.78));
+    drawHome(ctx, houseX, groundY, s * 0.92);
+    drawDish(ctx, houseX + 78 * s, groundY, s * 1.15);
+    drawStreetcar(ctx, panelX + panelW * 0.16, groundY, Math.min(1.55, s * 0.62));
     ctx.font = "12px IBM Plex Mono, ui-monospace, monospace";
     ctx.strokeStyle = INK;
     ctx.fillStyle = INK;
@@ -3287,7 +3457,7 @@
     ctx.strokeRect(sat.x - 6, sat.y - 3, 12, 5);
     ctx.strokeRect(sat.x - 14, sat.y - 1, 7, 3);
     ctx.strokeRect(sat.x + 7, sat.y - 1, 7, 3);
-    var dish = { x: houseX + 68 * s, y: groundY - 16 * s };
+    var dish = { x: houseX + 78 * s, y: groundY - 18 * s };
     ctx.restore();
     beamPackets(ctx, sat.x, sat.y + 4, dish.x, dish.y, t, 0.22, fade, true, {
       l: panelX + 8,
@@ -3301,7 +3471,7 @@
     var i;
     ctx.fillStyle = INK;
     for (i = 0; i < 30; i++) {
-      var p = project({ x: (Math.random() - 0.5) * 10, y: 0.2, z: (Math.random() - 0.5) * 8 }, cam);
+      var p = project({ x: (hash(i + 3) - 0.5) * 10, y: 0.2, z: (hash(i + 9) - 0.5) * 8 }, cam);
       ctx.globalAlpha = 0.08;
       ctx.fillRect(p.x, p.y, 2, 1);
     }

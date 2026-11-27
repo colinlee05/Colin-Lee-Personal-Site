@@ -156,6 +156,12 @@
         var ny = py / radius;
         if (nx * nx + ny * ny > 0.86) continue;
         if (!moonLit(nx, ny, phase)) continue;
+        var mare = (nx + 0.2) * (nx + 0.2) / 0.05 + (ny + 0.16) * (ny + 0.16) / 0.025;
+        var mare2 = (nx - 0.1) * (nx - 0.1) / 0.018 + (ny + 0.2) * (ny + 0.2) / 0.016;
+        var mare3 = (nx - 0.28) * (nx - 0.28) / 0.03 + (ny - 0.04) * (ny - 0.04) / 0.012;
+        if (mare < 1 || mare2 < 1 || mare3 < 1) {
+          if (hash2(row + 4, col + 9) > 0.35) continue;
+        }
         var limb = Math.cos(phase * Math.PI * 2);
         var edge = limb * Math.sqrt(Math.max(0, 1 - ny * ny));
         var depth = phase < 0.5 ? nx - edge : -edge - nx;
@@ -167,22 +173,16 @@
         ctx.fill();
       }
     }
-    ctx.fillStyle = "#16141a";
-    ctx.globalAlpha = 0.5;
-    if (moonLit(-0.18, -0.16, phase)) {
-      shadeBlob(ctx, radius, -0.22, -0.18, [[0.2, 0.13, -0.35]]);
-      shadeBlob(ctx, radius, -0.06, -0.08, [[0.09, 0.07, 0.4]]);
-      shadeBlob(ctx, radius, -0.32, -0.06, [[0.07, 0.06, 0.1]]);
-    }
-    if (moonLit(0.1, -0.2, phase)) {
-      shadeBlob(ctx, radius, 0.08, -0.22, [[0.11, 0.1, 0.25]]);
-      shadeBlob(ctx, radius, 0.16, -0.1, [[0.06, 0.05, -0.5]]);
-    }
-    if (moonLit(0.28, 0.04, phase)) {
-      shadeBlob(ctx, radius, 0.3, 0.02, [[0.14, 0.08, 0.2]]);
-      shadeBlob(ctx, radius, 0.18, 0.1, [[0.07, 0.05, -0.3]]);
-    }
     ctx.restore();
+    ctx.strokeStyle = INK;
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(-0.05 * radius, 0.12 * radius, radius * 0.08, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0.22 * radius, -0.18 * radius, radius * 0.05, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.strokeStyle = INK;
     ctx.lineWidth = 1.05;
     ctx.globalAlpha = 0.92;

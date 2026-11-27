@@ -684,18 +684,30 @@
         ? model.mission.elapsed
         : (performance.now() - model.mission.t0) / 1000;
     }
-    const rect = canvas.getBoundingClientRect();
-    view.w = Math.max(1, rect.width);
-    view.h = Math.max(1, rect.height);
-    view.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(view.w * view.dpr);
-    canvas.height = Math.round(view.h * view.dpr);
+    var margin = 14;
+    var availW = Math.max(320, window.innerWidth - margin * 2);
+    var availH = Math.max(320, window.innerHeight - margin * 2);
+    var fit = Math.min(availW / 1440, availH / 900);
+    stage.style.width = "1440px";
+    stage.style.height = "900px";
+    stage.style.position = "fixed";
+    stage.style.inset = "auto";
+    stage.style.left = ((window.innerWidth - 1440 * fit) / 2) + "px";
+    stage.style.top = ((window.innerHeight - 900 * fit) / 2) + "px";
+    stage.style.transformOrigin = "0 0";
+    stage.style.transform = "scale(" + fit + ")";
+    view.w = 1440;
+    view.h = 900;
+    view.scale = fit;
+    var px = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.max(2, Math.round(1440 * fit * px));
+    canvas.height = Math.max(2, Math.round(900 * fit * px));
+    view.dpr = canvas.width / 1440;
     ctx = canvas.getContext("2d", { alpha: false });
     ctx.imageSmoothingEnabled = false;
 
-    const cramped = view.w < 860 || view.h < 620;
-    html.classList.toggle("cramped", cramped);
-    model = Vehicle.create(view.w, view.h, cramped);
+    html.classList.remove("cramped");
+    model = Vehicle.create(1440, 900, false);
     if (elapsed != null) Vehicle.seek(model, elapsed, performance.now());
     geo = model.ui;
 
@@ -825,8 +837,8 @@
         id: el.dataset.open || "resume",
         anchor: el.dataset.anchor,
         side: side,
-        x: (side === "left" ? r.right : r.left) - crect.left + (side === "left" ? 2 : -2),
-        y: r.top + r.height / 2 - crect.top,
+        x: ((side === "left" ? r.right : r.left) - crect.left) / Math.max(1, crect.width) * view.w,
+        y: (r.top + r.height / 2 - crect.top) / Math.max(1, crect.height) * view.h,
       };
     });
   }
@@ -1371,7 +1383,7 @@
         "whoami        short bio",
         "ls projects   what I'm building",
         "cat resume    link to resume.pdf",
-        "certs         in progress, and coursework",
+        "certs         earned, and in progress",
         "contact       GitHub and LinkedIn",
         "launch        replay the mission",
         "clear",
@@ -1405,13 +1417,14 @@
     },
     certs: function () {
       return [
-        "In progress, not yet held:",
-        "  SAFe Scrum Master (Scaled Agile)",
+        "Earned:",
+        "  AWS Certified Cloud Practitioner, CLF-C02, passed Nov 25, 2026",
+        "  SAFe Scrum Master, Scaled Agile",
+        "  Gemini for University Students (Google)",
+        "In progress:",
         "  CompTIA Network+",
-        "  AWS Certified Cloud Practitioner",
-        "Coursework, not certifications held:",
-        "  CISA material, ISDS 4096",
-        "  CISSP material, ISDS 4070",
+        "  ISC2 CISSP",
+        "  ISACA CISA",
       ].join("\n");
     },
     contact: function () {
