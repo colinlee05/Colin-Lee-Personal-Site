@@ -752,11 +752,63 @@ html:not(.scene) .colophon { padding: 36px 8px 12px; }
 
 /* ---------- terminal ---------- */
 
+.badges {
+    list-style: none;
+    margin: 0 0 18px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 12px;
+}
+
+.badge {
+    margin: 0;
+    padding: 12px 10px 14px;
+    border: 1px solid rgba(243, 239, 230, 0.35);
+    text-align: center;
+    color: var(--ink);
+}
+
+.badge svg {
+    width: 72px;
+    height: 72px;
+    display: block;
+    margin: 0 auto 8px;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.badge-state {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.badge-name {
+    display: block;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.badge-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--muted);
+}
+
 .term {
-    position: absolute;
+    position: fixed;
     left: 16px;
     bottom: 16px;
-    z-index: 8;
+    z-index: 30;
     width: min(420px, calc(100% - 32px));
     background: #120f16;
     border: 1px solid rgba(243, 239, 230, 0.28);
@@ -857,8 +909,8 @@ html.cramped .callouts {
 
 html.cramped .callouts button,
 html.cramped .callouts a,
-html.mission .callouts button,
-html.mission .callouts a {
+html.mission.cramped .callouts button,
+html.mission.cramped .callouts a {
     position: static;
     top: auto !important;
     left: auto !important;
@@ -866,34 +918,22 @@ html.mission .callouts a {
     flex: 0 0 auto;
 }
 
-html.mission .callouts {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    height: auto;
-    max-height: 118px;
-    z-index: 7;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-content: center;
-    gap: 0 12px;
-    padding: 6px 10px 8px;
-    overflow: hidden;
-    background: linear-gradient(transparent, rgba(12, 11, 14, 0.9) 30%);
+html.scene.ready.mission.cramped .callouts,
+html.mission.cramped .callouts,
+html.mission .whisper,
+html.mission .legal {
+    opacity: 0 !important;
+    transition: none;
+    pointer-events: none;
 }
 
-html.mission .whisper,
-html.mission .legal { opacity: 0; pointer-events: none; }
-
 #skip-mission {
-    position: absolute;
-    top: 16px;
+    position: fixed;
+    top: 18px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 8;
+    z-index: 30;
+    background: #121016;
 }
 
 html.cramped #skip-mission {
@@ -919,8 +959,11 @@ html.mission .caption {
     top: 78px;
     left: 18px;
     bottom: auto;
+    display: inline-block;
     max-width: min(380px, calc(100% - 250px));
-    text-shadow: 0 1px 2px #0c0b0e;
+    padding: 4px 8px;
+    background: rgba(12, 11, 14, 0.78);
+    line-height: 1.35;
 }
 
 html.cramped.mission .caption {

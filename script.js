@@ -684,18 +684,47 @@
         ? model.mission.elapsed
         : (performance.now() - model.mission.t0) / 1000;
     }
-    const rect = canvas.getBoundingClientRect();
-    view.w = Math.max(1, rect.width);
-    view.h = Math.max(1, rect.height);
-    view.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(view.w * view.dpr);
-    canvas.height = Math.round(view.h * view.dpr);
+    var portrait = window.innerHeight > window.innerWidth * 1.05;
+    html.classList.toggle("cramped", portrait);
+    html.classList.toggle("portrait", portrait);
+    var px = Math.min(window.devicePixelRatio || 1, 3);
+    if (!portrait) {
+      var margin = 14;
+      var availW = Math.max(320, window.innerWidth - margin * 2);
+      var availH = Math.max(320, window.innerHeight - margin * 2);
+      var fit = Math.min(availW / 1440, availH / 900);
+      stage.style.width = "1440px";
+      stage.style.height = "900px";
+      stage.style.position = "fixed";
+      stage.style.inset = "auto";
+      stage.style.left = ((window.innerWidth - 1440 * fit) / 2) + "px";
+      stage.style.top = ((window.innerHeight - 900 * fit) / 2) + "px";
+      stage.style.transformOrigin = "0 0";
+      stage.style.transform = "scale(" + fit + ")";
+      view.w = 1440;
+      view.h = 900;
+      view.scale = fit;
+      canvas.width = Math.max(2, Math.round(1440 * fit * px));
+      canvas.height = Math.max(2, Math.round(900 * fit * px));
+      view.dpr = canvas.width / 1440;
+    } else {
+      stage.style.transform = "none";
+      stage.style.position = "fixed";
+      stage.style.inset = "0";
+      stage.style.left = "0";
+      stage.style.top = "0";
+      stage.style.width = "100%";
+      stage.style.height = "100%";
+      view.w = Math.max(1, window.innerWidth);
+      view.h = Math.max(1, window.innerHeight);
+      view.scale = 1;
+      canvas.width = Math.max(2, Math.round(view.w * px));
+      canvas.height = Math.max(2, Math.round(view.h * px));
+      view.dpr = px;
+    }
     ctx = canvas.getContext("2d", { alpha: false });
     ctx.imageSmoothingEnabled = false;
-
-    const cramped = view.w < 860 || view.h < 620;
-    html.classList.toggle("cramped", cramped);
-    model = Vehicle.create(view.w, view.h, cramped);
+    model = Vehicle.create(view.w, view.h, portrait);
     if (elapsed != null) Vehicle.seek(model, elapsed, performance.now());
     geo = model.ui;
 
@@ -778,7 +807,7 @@
         cursor += el.offsetHeight + 6;
       });
     }
-    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 16, A.home.y - 28);
+    if (A.home && byId.about) add("about", A.home.x - byId.about.offsetWidth - 18, A.home.y - 78);
     if (A.stadium && byId.education) {
       add("education", A.stadium.x - byId.education.offsetWidth - 20, A.stadium.y - byId.education.offsetHeight - 92);
     }
@@ -825,8 +854,8 @@
         id: el.dataset.open || "resume",
         anchor: el.dataset.anchor,
         side: side,
-        x: (side === "left" ? r.right : r.left) - crect.left + (side === "left" ? 2 : -2),
-        y: r.top + r.height / 2 - crect.top,
+        x: ((side === "left" ? r.right : r.left) - crect.left) / Math.max(1, crect.width) * view.w,
+        y: (r.top + r.height / 2 - crect.top) / Math.max(1, crect.height) * view.h,
       };
     });
   }
@@ -992,6 +1021,7 @@
     const py = reduce ? 0 : mouse.y * 1.4;
     ctx.globalAlpha = 1;
     if (model) Vehicle.paint(ctx, model, now);
+    syncLabels();
     syncMission(now);
     if (!Vehicle.active(model)) {
       drawScreen(now);
@@ -1134,6 +1164,36 @@
     var box = document.getElementById("payloads");
     if (box) box.replaceChildren();
     if (ctx && geo) draw(performance.now());
+  }
+
+  function syncLabels() {
+    var spots = model && model._labels;
+    var mission = html.classList.contains("mission");
+    var cramped = html.classList.contains("cramped");
+    var els = document.querySelectorAll(".callouts [data-anchor]");
+    var used = {};
+    Array.prototype.forEach.call(els, function (el) {
+      if (!mission || cramped) {
+        el.style.opacity = "";
+        return;
+      }
+      var name = el.dataset.anchor;
+      var spot = spots && spots[name];
+      var pad = spots && spots._pad || 0;
+      var n = used[name] || 0;
+      used[name] = n + 1;
+      if (!spot || pad < 0.05) {
+        el.style.opacity = "0";
+        return;
+      }
+      var side = el.dataset.side === "left" ? -1 : 1;
+      var x = spot.x + (side < 0 ? -el.offsetWidth - 10 : 12);
+      var y = spot.y - el.offsetHeight * 0.5 + n * (el.offsetHeight + 4);
+      var on = x > 6 && y > 52 && x + el.offsetWidth < view.w - 6 && y + el.offsetHeight < view.h - 24;
+      el.style.left = Math.round(Math.max(6, x)) + "px";
+      el.style.top = Math.round(y) + "px";
+      el.style.opacity = on ? String(Math.min(1, pad)) : "0";
+    });
   }
 
   function syncMission(now) {
@@ -1371,7 +1431,7 @@
         "whoami        short bio",
         "ls projects   what I'm building",
         "cat resume    link to resume.pdf",
-        "certs         in progress, and coursework",
+        "certs         earned, and in progress",
         "contact       GitHub and LinkedIn",
         "launch        replay the mission",
         "clear",
@@ -1405,13 +1465,14 @@
     },
     certs: function () {
       return [
-        "In progress, not yet held:",
-        "  SAFe Scrum Master (Scaled Agile)",
+        "Earned:",
+        "  AWS Certified Cloud Practitioner, CLF-C02, passed Nov 25, 2026",
+        "  SAFe Scrum Master, Scaled Agile",
+        "  Gemini for University Students (Google)",
+        "In progress:",
         "  CompTIA Network+",
-        "  AWS Certified Cloud Practitioner",
-        "Coursework, not certifications held:",
-        "  CISA material, ISDS 4096",
-        "  CISSP material, ISDS 4070",
+        "  ISC2 CISSP",
+        "  ISACA CISA",
       ].join("\n");
     },
     contact: function () {
